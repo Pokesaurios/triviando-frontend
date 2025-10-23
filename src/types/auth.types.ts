@@ -19,3 +19,16 @@ export interface AuthFormState {
   isLoading: boolean;
   message: AuthMessage | null;
 }
+
+// Nueva interfaz para la respuesta del usuario
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface AuthResponse {
+  message: string;
+  user: User;
+  token: string;
+}

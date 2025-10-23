@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AuthFormState, AuthMessage } from '../types/auth.types';
 import { MESSAGES, ANIMATION_DURATIONS } from '../config/constants';
+import { authService } from '../lib/services/authServices';
 
 export const useAuthForm = (isLogin: boolean) => {
   const [formState, setFormState] = useState<AuthFormState>({
@@ -38,14 +39,54 @@ export const useAuthForm = (isLogin: boolean) => {
     setIsLoading(true);
     setMessage(null);
 
-    // Simulación de llamada a API
-    setTimeout(() => {
+    try {
+      let result;
+      
+      if (isLogin) {
+        result = await authService.login({
+          email: formState.email,
+          password: formState.password
+        });
+      } else {
+        result = await authService.register({
+          username: formState.username,
+          email: formState.email,
+          password: formState.password
+        });
+      }
+
+      if (result.success && result.token) {
+        // Guardar token y datos del usuario
+        localStorage.setItem('token', result.token);
+        if (result.user) {
+          localStorage.setItem('user', JSON.stringify(result.user));
+        }
+        
+        setMessage({
+          type: 'success',
+          text: isLogin ? MESSAGES.LOGIN_SUCCESS : MESSAGES.REGISTER_SUCCESS,
+        });
+
+        setTimeout(() => {
+          console.log('Redirigiendo al dashboard...');
+          window.location.href = '/dashboard'; // O usa tu router
+        }, 1000);
+        
+      } else {
+        setMessage({
+          type: 'error',
+          text: result.error || (isLogin ? MESSAGES.LOGIN_ERROR : MESSAGES.REGISTER_ERROR),
+        });
+      }
+    } catch (error) {
+      console.error('Error en submit:', error);
       setMessage({
-        type: 'success',
-        text: isLogin ? MESSAGES.LOGIN_SUCCESS : MESSAGES.REGISTER_SUCCESS,
+        type: 'error',
+        text: 'Error de conexión con el servidor',
       });
+    } finally {
       setIsLoading(false);
-    }, ANIMATION_DURATIONS.FORM_SUBMIT);
+    }
   };
 
   return {
