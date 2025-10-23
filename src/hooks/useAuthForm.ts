@@ -69,7 +69,7 @@ export const useAuthForm = (isLogin: boolean) => {
 
         setTimeout(() => {
           console.log('Redirigiendo al dashboard...');
-          window.location.href = '/dashboard'; // O usa tu router
+          window.location.reload();
         }, 1000);
         
       } else {
