@@ -3,8 +3,10 @@ import { useState } from 'react';
 import { AnimatedBackground } from '../components/ui/AnimatedBackground';
 import { LogoHeader } from '../components/ui/LogoHeader';
 import { MenuButton } from '../components/ui/MenuButton';
+import { useNavigate } from 'react-router-dom';
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const [user] = useState(() => {
     const userData = localStorage.getItem('user');
     return userData ? JSON.parse(userData) : { username: 'Usuario' };
@@ -48,6 +50,7 @@ export default function DashboardPage() {
                   <motion.button
                     whileHover={{ scale: 1.05, y: -2 }}
                     whileTap={{ scale: 0.95 }}
+                    onClick={() => navigate('/create-trivia')}
                     className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all"
                   >
                     Crear Nueva Trivia
