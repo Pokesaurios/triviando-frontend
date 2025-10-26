@@ -18,6 +18,14 @@ export default function DashboardPage() {
     window.location.reload();
   };
 
+  const handleCreateTrivia = () => {
+    navigate('/create-trivia');
+  };
+
+  const handleJoinRoom = () => {
+    navigate('/join-room');
+  };
+
   return (
     <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4 bg-gradient-to-b from-purple-500 to-purple-600">
       <AnimatedBackground />
@@ -50,7 +58,7 @@ export default function DashboardPage() {
                   <motion.button
                     whileHover={{ scale: 1.05, y: -2 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => navigate('/create-trivia')}
+                    onClick={handleCreateTrivia}
                     className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all"
                   >
                     Crear Nueva Trivia
@@ -59,6 +67,7 @@ export default function DashboardPage() {
                   <motion.button
                     whileHover={{ scale: 1.05, y: -2 }}
                     whileTap={{ scale: 0.95 }}
+                    onClick={handleJoinRoom}
                     className="w-full bg-gradient-to-r from-pink-400 to-pink-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all"
                   >
                     Unirse a Trivia

@@ -1,13 +1,15 @@
-import { useState } from 'react'; 
+// app/CreateTriviaPage.tsx
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { AnimatedBackground } from '../components/ui/AnimatedBackground';
 import { LogoHeader } from '../components/ui/LogoHeader';
 import { MenuButton } from '../components/ui/MenuButton';
 import { ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Alert } from '../components/ui/Alert'; 
+import { Alert } from '../components/ui/Alert';
 import { validateMaxPlayers, validateTopic } from '../utils/validation';
 import toaster from 'react-hot-toast';
+import { useCreateRoom } from '../hooks/useRoom';
 
 export default function CreateTriviaPage() {
   const [topic, setTopic] = useState('');
@@ -16,35 +18,61 @@ export default function CreateTriviaPage() {
   const [alert, setAlert] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
   const navigate = useNavigate();
 
+  const createRoomMutation = useCreateRoom();
+
   const handleGenerateTrivia = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const maxPlayersValidation = validateMaxPlayers(Number(maxPlayers));
+    // Validaciones
     const topicValidation = validateTopic(topic);
-
     if (!topicValidation) {
-        setAlert({ type: 'error', text: 'El tema de la trivia no puede estar vacío.' });
-        toaster.error('El tema de la trivia no puede estar vacío.');
-        return;
+      setAlert({ type: 'error', text: 'El tema de la trivia no puede estar vacío.' });
+      return;
     }
 
+    const maxPlayersValidation = validateMaxPlayers(Number(maxPlayers));
     if (!maxPlayersValidation.isValid) {
       setAlert({ type: 'error', text: maxPlayersValidation.error! });
       return;
     }
 
-    setAlert({ type: 'success', text: 'Trivia creada correctamente 🎉' });
-    console.log({ topic, maxPlayers, numQuestions });
+    // Crear sala (que a su vez genera la trivia)
+    createRoomMutation.mutate({
+      topic,
+      maxPlayers: Number(maxPlayers),
+      quantity: Number(numQuestions),
+    });
   };
+
+  useEffect(() => {
+    if (createRoomMutation.isSuccess && createRoomMutation.data) {
+      toaster.success('¡Sala creada exitosamente! 🎉');
+      // Redirigir a la sala de espera con el código
+      navigate(`/room/${createRoomMutation.data.code}`);
+    }
+  }, [createRoomMutation.isSuccess, createRoomMutation.data, navigate]);
+
+  // Manejar errores
+  useEffect(() => {
+    if (createRoomMutation.isError) {
+      const errorMessage = createRoomMutation.error?.message || 'Error al crear la sala';
+      setAlert({ type: 'error', text: errorMessage });
+      toaster.error(errorMessage);
+    }
+  }, [createRoomMutation.isError, createRoomMutation.error]);
 
   const handleBack = () => {
     navigate('/dashboard');
+  };
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.reload();
   };
 
   return (
     <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4 bg-gradient-to-b from-purple-500 to-purple-600">
       <AnimatedBackground />
-
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -54,20 +82,17 @@ export default function CreateTriviaPage() {
         <motion.div
           className="bg-gradient-to-b from-cyan-400 to-cyan-500 rounded-3xl shadow-2xl overflow-hidden"
           whileHover={{ scale: 1.02 }}
-          transition={{ type: "spring", stiffness: 300 }}
+          transition={{ type: 'spring', stiffness: 300 }}
         >
           <div className="relative">
             <div className="absolute top-0 right-0 z-20">
-              <MenuButton onLogout={() => console.log('Menú clic')} />
+              <MenuButton onLogout={handleLogout} />
             </div>
-
             <LogoHeader variant="dashboard" />
-
             <div className="bg-white p-6 mt-5">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
                 Crear Trivia con IA
               </h2>
-
               <form onSubmit={handleGenerateTrivia} className="space-y-5">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">
@@ -77,7 +102,8 @@ export default function CreateTriviaPage() {
                     type="text"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-cyan-500 focus:outline-none transition-colors text-gray-600"
+                    disabled={createRoomMutation.isPending}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-cyan-500 focus:outline-none transition-colors text-gray-600 disabled:bg-gray-100"
                     placeholder="Ej: Historia del Arte, Ciencia, Deportes ..."
                   />
                   {alert && alert.type === 'error' && alert.text.includes('tema') && (
@@ -86,7 +112,6 @@ export default function CreateTriviaPage() {
                     </div>
                   )}
                 </div>
-
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">
                     Número de jugadores
@@ -95,16 +120,16 @@ export default function CreateTriviaPage() {
                     type="number"
                     value={maxPlayers}
                     onChange={(e) => setMaxPlayers(e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-cyan-500 focus:outline-none transition-colors text-gray-600"
+                    disabled={createRoomMutation.isPending}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-cyan-500 focus:outline-none transition-colors text-gray-600 disabled:bg-gray-100"
                     placeholder="Ej: 20 ..."
                   />
-                    {alert && alert.type === 'error' && alert.text.includes('jugadores') && (
-                        <div className="mt-2">
-                            <Alert message={{ type: 'error', text: alert.text }} />
-                        </div>
-                    )}
+                  {alert && alert.type === 'error' && alert.text.includes('jugadores') && (
+                    <div className="mt-2">
+                      <Alert message={{ type: 'error', text: alert.text }} />
+                    </div>
+                  )}
                 </div>
-
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">
                     Número de preguntas
@@ -113,7 +138,8 @@ export default function CreateTriviaPage() {
                     <select
                       value={numQuestions}
                       onChange={(e) => setNumQuestions(e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-cyan-500 focus:outline-none transition-colors text-gray-700 appearance-none bg-white cursor-pointer"
+                      disabled={createRoomMutation.isPending}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-cyan-500 focus:outline-none transition-colors text-gray-700 appearance-none bg-white cursor-pointer disabled:bg-gray-100"
                     >
                       <option value="5">5 Preguntas</option>
                       <option value="10">10 Preguntas</option>
@@ -126,23 +152,23 @@ export default function CreateTriviaPage() {
                     />
                   </div>
                 </div>
-
                 <div className="space-y-3 pt-2">
                   <motion.button
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.95 }}
+                    whileHover={{ scale: createRoomMutation.isPending ? 1 : 1.05, y: createRoomMutation.isPending ? 0 : -2 }}
+                    whileTap={{ scale: createRoomMutation.isPending ? 1 : 0.95 }}
                     type="submit"
-                    className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all"
+                    disabled={createRoomMutation.isPending}
+                    className="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Generar Trivia
+                    {createRoomMutation.isPending ? 'Creando sala...' : 'Generar Trivia'}
                   </motion.button>
-
                   <motion.button
                     whileHover={{ scale: 1.05, y: -2 }}
                     whileTap={{ scale: 0.95 }}
                     type="button"
                     onClick={handleBack}
-                    className="w-full bg-gradient-to-r from-pink-400 to-pink-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all"
+                    disabled={createRoomMutation.isPending}
+                    className="w-full bg-gradient-to-r from-pink-400 to-pink-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
                   >
                     Volver
                   </motion.button>

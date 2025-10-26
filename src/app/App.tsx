@@ -3,6 +3,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import LoginPage from './LoginPage';
 import DashboardPage from './DashboardPage';
 import CreateTriviaPage from './CreateTriviaPage';
+import WaitingRoomPage from './WaitingRoomPage';
+import JoinRoomPage from './JoinRoomPage';
+
 
 // Componente para proteger rutas
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -30,7 +33,7 @@ function App() {
     <Router>
       <Routes>
         {/* Ruta pública */}
-         <Route
+        <Route
           path="/"
           element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />}
         />
@@ -52,6 +55,23 @@ function App() {
             </PrivateRoute>
           }
         />
+        <Route
+          path="/room/:code"
+          element={
+            <PrivateRoute>
+              <WaitingRoomPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/join-room"
+          element={
+            <PrivateRoute>
+              <JoinRoomPage />
+            </PrivateRoute>
+          }
+        />
+
         {/* Redirección por defecto */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

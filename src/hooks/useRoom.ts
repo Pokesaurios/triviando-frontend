@@ -10,7 +10,6 @@ export const ROOM_KEYS = {
   byCode: (code: string) => ['rooms', code] as const,
 };
 
-
 export const useCreateRoom = () => {
   const queryClient = useQueryClient();
 
@@ -45,8 +44,9 @@ export const useRoom = (code: string, enabled: boolean = true) => {
     enabled: enabled && !!code,
     refetchInterval: (query) => {
       const data = query.state.data;
-      return data?.status === 'waiting' ? 3000 : false;
+      return data?.status === 'waiting' ? 10000 : false;
     },
-    staleTime: 2000,
+    staleTime: 5000,
+    refetchOnWindowFocus: true,
   });
 };
