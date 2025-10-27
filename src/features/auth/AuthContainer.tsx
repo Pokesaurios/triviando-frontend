@@ -7,7 +7,7 @@ import { useAuthForm } from '../../hooks/useAuthForm';
 import { hoverScale } from '../../config/animations';
 
 export const AuthContainer: React.FC = () => {
-  const { isLogin, toggleMode, switchToLogin, switchToRegister } = useAuthMode();
+  const { isLogin, switchToLogin, switchToRegister } = useAuthMode();
   const { formState, updateField, handleSubmit, resetForm } = useAuthForm(isLogin);
 
   const handleModeChange = (newMode: 'login' | 'register') => {

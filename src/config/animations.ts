@@ -1,13 +1,16 @@
+import type { Variants } from 'framer-motion';
+
 export const fadeInUp = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
   transition: { duration: 0.6 },
 };
 
-export const scaleIn = {
+export const scaleIn: Variants = {
   initial: { scale: 0 },
-  animate: { scale: 1 },
-  transition: { delay: 0.2, type: 'spring', stiffness: 200 },
+  animate: { scale: 1 ,
+  transition: { delay: 0.2, type: 'spring', stiffness: 200 ,},
+  },
 };
 
 export const fadeIn = {
@@ -51,7 +54,7 @@ export const logoWiggle = {
 
 export const hoverScale = {
   whileHover: { scale: 1.02 },
-  transition: { type: 'spring', stiffness: 300 },
+  transition: { type: 'spring' as const, stiffness: 300 },
 };
 
 export const tapScale = {
