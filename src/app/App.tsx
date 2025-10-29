@@ -10,6 +10,7 @@ import CreateTriviaPage from './CreateTriviaPage';
 import WaitingRoomPage from './WaitingRoomPage';
 import JoinRoomPage from './JoinRoomPage';
 import GamePage from './GamePage';
+import StatsPage from './StatsPage';
 
 
 // Componente para proteger rutas
@@ -103,6 +104,15 @@ function App() {
             element={
               <PrivateRoute>
                 <GamePage />
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/stats"
+            element={
+              <PrivateRoute>
+                <StatsPage />
               </PrivateRoute>
             }
           />

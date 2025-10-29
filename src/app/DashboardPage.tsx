@@ -26,6 +26,10 @@ export default function DashboardPage() {
     navigate('/join-room');
   };
 
+  const handleStats = () => {
+    navigate('/stats');
+  };
+
   return (
     <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4 bg-gradient-to-b from-purple-500 to-purple-600">
       <AnimatedBackground />
@@ -76,6 +80,7 @@ export default function DashboardPage() {
                   <motion.button
                     whileHover={{ scale: 1.05, y: -2 }}
                     whileTap={{ scale: 0.95 }}
+                    onClick={handleStats}
                     className="w-full bg-gradient-to-r from-cyan-400 to-cyan-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all"
                   >
                     Mis Estadísticas
