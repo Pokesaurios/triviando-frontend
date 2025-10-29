@@ -24,7 +24,6 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 };
 
-//** 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const socketInitialized = useRef(false);
