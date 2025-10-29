@@ -1,4 +1,3 @@
-// app/WaitingRoomPage.tsx
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -9,35 +8,58 @@ import { DecorativeBackground } from '../components/ui/DecorativeBackground';
 import { WaitingRoomContainer } from '../features/waitingRoom/WaitingRoomContainer';
 import { useRoom } from '../hooks/useRoom';
 import { useClipboard } from '../hooks/useClipboard';
-import { connectSocket } from '../lib/socket';
+import { useRoomSocket } from '../hooks/useRoomSocket';
+import { useChat } from '../hooks/useChat';
+import { connectSocket, getSocket } from '../lib/socket';
 
 export default function WaitingRoomPage() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
   const { copied, copyToClipboard } = useClipboard();
   
-  // Fetch room data with automatic polling
-  const { data: room, isLoading, isError, error } = useRoom(code || '', !!code);
+  const { 
+    messages, 
+    addMessage, 
+    sendMessage, 
+    isConnected,
+    loadChatHistory 
+  } = useChat();
   
-  // Get current user from localStorage
+  const { connected } = useRoomSocket(code || '', {
+    onNewMessage: addMessage
+  });
+  
+
+  const { data: room, isLoading, isError, error } = useRoom(
+    code || '', 
+    !!code,
+    connected
+  );
+  
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-  
-  // Asegurar que el socket esté conectado
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      connectSocket(token);
+      const socket = getSocket();
+      if (!socket || !socket.connected) {
+        connectSocket(token);
+      }
     }
   }, []);
   
-  // Handle copy room code
+  useEffect(() => {
+    if (code && connected) {
+      loadChatHistory(code);
+    }
+  }, [code, connected, loadChatHistory]);
+
   const handleCopyCode = () => {
     if (code) {
       copyToClipboard(code, 'Código copiado al portapapeles');
     }
   };
-  
-  // Redirect if error
+
   useEffect(() => {
     if (isError) {
       toast.error(error?.message || 'Error al cargar la sala');
@@ -45,7 +67,6 @@ export default function WaitingRoomPage() {
     }
   }, [isError, error, navigate]);
   
-  // Loading state
   if (isLoading) {
     return (
       <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500">
@@ -55,7 +76,6 @@ export default function WaitingRoomPage() {
     );
   }
   
-  // Room not found state
   if (!room) {
     return (
       <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500">
@@ -101,6 +121,12 @@ export default function WaitingRoomPage() {
             room={room}
             currentUserId={currentUser.id}
             currentUserName={currentUser.name || 'Usuario'}
+            messages={messages}
+            onSendMessage={(messageText) => {
+              if (!code || !currentUser.id) return;
+              sendMessage(messageText, code, currentUser.id, currentUser.name);
+            }}
+            isChatConnected={isConnected}
           />
         </motion.div>
       </div>

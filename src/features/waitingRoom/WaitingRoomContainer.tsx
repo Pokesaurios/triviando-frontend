@@ -2,10 +2,8 @@ import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { PlayersList } from './PlayersList';
-import { ChatPanel } from './ChatPanel';
-import { useChat } from '../../hooks/useChat';
-import { ChatMessage } from '../../types/chat.types';
-import { getAvatarColor } from '../../utils/avatar';
+import { ChatPanel } from '../chat/ChatPanel';
+import { getSocket } from '../../lib/socket';
 
 interface Room {
   code: string;
@@ -15,20 +13,33 @@ interface Room {
   players: Array<{ userId: string; name: string }>;
 }
 
+interface Message {
+  id: string;
+  userId: string;
+  userName: string;
+  text: string;
+  timestamp: Date;
+}
+
 interface WaitingRoomContainerProps {
   room: Room;
   currentUserId: string;
   currentUserName: string;
+  messages: Message[];
+  onSendMessage: (message: string) => void;
+  isChatConnected: boolean;
 }
 
 export const WaitingRoomContainer: React.FC<WaitingRoomContainerProps> = ({
   room,
   currentUserId,
-  currentUserName
+  currentUserName,
+  messages,
+  onSendMessage,
+  isChatConnected
 }) => {
   const navigate = useNavigate();
-  const { messages, addMessage } = useChat();
-  
+
   // Validación de seguridad para players
   const players = room?.players || [];
   const isHost = room?.hostId === currentUserId;
@@ -39,29 +50,40 @@ export const WaitingRoomContainer: React.FC<WaitingRoomContainerProps> = ({
       toast.error('Se necesitan al menos 2 jugadores para iniciar');
       return;
     }
-    toast.success('¡Iniciando partida!');
-    navigate(`/game/${room.code}`);
+    
+    const socket = getSocket();
+    if (socket && socket.connected) {
+      socket.emit('game:start', { code: room.code });
+      toast.success('¡Iniciando partida!');
+      navigate(`/game/${room.code}`);
+    } else {
+      toast.error('No hay conexión con el servidor');
+    }
   }, [canStartGame, navigate, room.code]);
 
   const handleLeaveRoom = useCallback(() => {
+    const socket = getSocket();
+    if (socket && socket.connected) {
+      socket.emit('room:leave', { code: room.code });
+    }
     navigate('/dashboard');
-  }, [navigate]);
+  }, [navigate, room.code]);
 
   const handleSendMessage = useCallback((messageText: string) => {
-    const message: ChatMessage = {
-      id: Date.now().toString(),
-      player_id: currentUserId,
-      username: currentUserName,
-      message: messageText,
-      created_at: new Date().toISOString(),
-      avatar_color: getAvatarColor(currentUserId)
-    };
-    addMessage(message);
-  }, [currentUserId, currentUserName, addMessage]);
+    if (!isChatConnected) {
+      toast.error('No hay conexión. Intenta de nuevo.');
+      return;
+    }
+    
+    if (!messageText.trim()) {
+      return;
+    }
+    
+    onSendMessage(messageText);
+  }, [onSendMessage, isChatConnected]);
 
-  // Redirect when game starts
   useEffect(() => {
-    if (room?.status === 'playing') {
+    if (room?.status === 'playing' || room?.status === 'in-game') {
       navigate(`/game/${room.code}`);
     }
   }, [room?.status, room?.code, navigate]);
@@ -88,6 +110,7 @@ export const WaitingRoomContainer: React.FC<WaitingRoomContainerProps> = ({
           messages={messages}
           currentUserId={currentUserId}
           onSendMessage={handleSendMessage}
+          isConnected={isChatConnected}
         />
       </div>
     </div>

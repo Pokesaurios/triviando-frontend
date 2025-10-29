@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AuthFormState, AuthMessage } from '../types/auth.types';
-import { MESSAGES, ANIMATION_DURATIONS } from '../config/constants';
+import { MESSAGES } from '../config/constants';
 import { authService } from '../lib/services/authServices';
 
 export const useAuthForm = (isLogin: boolean) => {

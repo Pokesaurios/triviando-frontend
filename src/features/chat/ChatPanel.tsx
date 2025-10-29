@@ -1,4 +1,3 @@
-// features/waitingRoom/ChatPanel.tsx
 import { useRef, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { MessageCircle } from 'lucide-react';
@@ -10,12 +9,14 @@ interface ChatPanelProps {
   messages: ChatMessage[];
   currentUserId: string;
   onSendMessage: (message: string) => void;
+  isConnected?: boolean;
 }
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({
   messages,
   currentUserId,
-  onSendMessage
+  onSendMessage,
+  isConnected = true
 }) => {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -25,13 +26,17 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
   return (
     <div className="bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[600px]">
+      {/* Header con indicador de conexión */}
       <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-4">
-        <div className="flex items-center gap-2 text-white">
-          <MessageCircle size={24} />
-          <h2 className="text-xl font-bold">Chat de la Sala</h2>
+        <div className="flex items-center justify-between text-white">
+          <div className="flex items-center gap-2">
+            <MessageCircle size={24} />
+            <h2 className="text-xl font-bold">Chat de la Sala</h2>
+          </div>
         </div>
       </div>
 
+      {/* Mensajes */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-gray-50 to-white">
         <AnimatePresence>
           {messages.length > 0 ? (
@@ -52,7 +57,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         <div ref={chatEndRef} />
       </div>
 
-      <ChatInput onSendMessage={onSendMessage} />
+      {/* Input */}
+      <ChatInput onSendMessage={onSendMessage} disabled={!isConnected} />
     </div>
   );
 };

@@ -1,8 +1,7 @@
-// components/ui/PlayerAvatar.tsx
 import { motion } from 'framer-motion';
-
+import { getInitials } from '../../utils/avatar';
 interface PlayerAvatarProps {
-  name: string;
+  name?: string;
   color: string;
   size?: 'sm' | 'md' | 'lg';
   isOnline?: boolean;
@@ -13,15 +12,6 @@ export function PlayerAvatar({ name, color, size = 'md', isOnline }: PlayerAvata
     sm: 'w-8 h-8 text-xs',
     md: 'w-12 h-12 text-base',
     lg: 'w-16 h-16 text-xl',
-  };
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
   };
 
   return (
@@ -39,11 +29,13 @@ export function PlayerAvatar({ name, color, size = 'md', isOnline }: PlayerAvata
         `}
         style={{ backgroundColor: color }}
       >
-        {getInitials(name)}
+        {getInitials(name || '')}
       </motion.div>
 
-      {isOnline && (
-        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
+      {isOnline !== undefined && (
+        <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full ${
+          isOnline ? 'bg-green-500' : 'bg-gray-400'
+        }`} />
       )}
     </div>
   );

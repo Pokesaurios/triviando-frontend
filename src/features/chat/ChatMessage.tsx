@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { PlayerAvatar } from '../../components/ui/PlayerAvatar';
 import { ChatMessage as ChatMessageType } from '../../types/chat.types';
+import { getAvatarColor } from '../../utils/avatar';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -8,6 +9,8 @@ interface ChatMessageProps {
 }
 
 export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isCurrentUser }) => {
+  const color = message.avatar_color || getAvatarColor(message.player_id || message.username || 'default');
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -16,14 +19,13 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isCurrentUser
       className={`flex gap-3 ${isCurrentUser ? 'flex-row-reverse' : ''}`}
     >
       <PlayerAvatar 
-        name={message.username}
-        color={message.avatar_color}
+        name={message.username || 'Usuario'}
+        color={color}
         size="sm"
-        animated
       />
       
       <div className={`flex-1 ${isCurrentUser ? 'text-right' : ''}`}>
-        <p className="text-xs text-gray-500 mb-1">{message.username}</p>
+        <p className="text-xs text-gray-500 mb-1">{message.username || 'Usuario'}</p>
         <motion.div
           whileHover={{ scale: 1.02 }}
           className={`inline-block max-w-[80%] p-3 rounded-2xl shadow-md ${
@@ -34,12 +36,6 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isCurrentUser
         >
           <p className="break-words">{message.message}</p>
         </motion.div>
-        <p className="text-xs text-gray-400 mt-1">
-          {new Date(message.created_at).toLocaleTimeString('es-ES', {
-            hour: '2-digit',
-            minute: '2-digit'
-          })}
-        </p>
       </div>
     </motion.div>
   );

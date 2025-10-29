@@ -5,11 +5,7 @@ export const MESSAGES = {
   REGISTER_SUCCESS: '¡Cuenta creada exitosamente!',
   LOGIN_ERROR: 'Credenciales incorrectas',
   REGISTER_ERROR: 'Error al crear la cuenta',
-  CONNECTION_ERROR: 'Error de conexión con el servidor',
-  SOCKET_CONNECTED: '✅ Socket conectado:',
-  SOCKET_DISCONNECTED: '❌ Socket desconectado:',
-  SOCKET_ERROR: '❌ Error de conexión socket:',
-  SOCKET_MANUAL_DISCONNECT: '🔌 Socket desconectado manualmente',
+  CONNECTION_ERROR: 'Error de conexión con el servidor'
 };
 
 export const ANIMATION_DURATIONS = {
@@ -27,11 +23,11 @@ export const ROUTES = {
 
 // Nueva constante para la URL base de la API
 export const API_CONFIG = {
-  BASE_URL: 'http://localhost:4000/api/v1',
+  BASE_URL: 'https://triviando-backend-g5fph6h2fybhd7cj.canadacentral-01.azurewebsites.net/api/v1',
 };
 // Configuración del Socket
 export const SOCKET_CONFIG = {
-  URL: import.meta.env.VITE_SOCKET_URL || 'http://localhost:4000',
+  URL: import.meta.env.VITE_SOCKET_URL || 'https://triviando-backend-g5fph6h2fybhd7cj.canadacentral-01.azurewebsites.net/',
   OPTIONS: {
     autoConnect: false,
     withCredentials: true,

@@ -1,10 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { socket } from '../lib/socket';
+import { getSocket } from '../lib/socket';
 import toast from 'react-hot-toast';
-import { ROOM_KEYS } from './useRoom';
 import type { Room } from '../types/room.types';
-import { MESSAGES } from '../config/constants';
+import type { ChatMessage } from '../types/chat.types';
 
 interface RoomUpdateEvent {
   event: 'playerJoined' | 'playerLeft' | 'roomCreated';
@@ -15,104 +14,258 @@ interface RoomUpdateEvent {
   roomId?: string;
 }
 
-export const useRoomSocket = (roomCode: string | undefined) => {
+interface UseRoomSocketOptions {
+  onNewMessage?: (message: ChatMessage) => void;
+}
+
+export const ROOM_KEYS = {
+  all: ['rooms'] as const,
+  byCode: (code: string) => ['rooms', code] as const,
+};
+
+export const useRoomSocket = (
+  roomCode: string | undefined,
+  options?: UseRoomSocketOptions
+) => {
   const queryClient = useQueryClient();
-  const hasShownJoinToast = useRef(false);
+  const { onNewMessage } = options || {};
+  
+  const [connected, setConnected] = useState(false);
+  const [joined, setJoined] = useState(false);
+  
+  const joinedRef = useRef(false);
+  const isJoiningRef = useRef(false);
 
   useEffect(() => {
     if (!roomCode) return;
 
+    const socket = getSocket();
+    if (!socket) {
+      console.warn('Socket no disponible');
+      return;
+    }
+
+    const joinRoom = () => {
+      // Prevenir múltiples llamadas simultáneas
+      if (joinedRef.current || isJoiningRef.current) {
+        console.log('Ya unido o intentando unirse, saltando...');
+        return;
+      }
+
+      isJoiningRef.current = true;
+      console.log(`🔌 Uniéndose a la sala: ${roomCode}`);
+      
+      socket.emit('room:join', { code: roomCode }, (response?: { 
+        ok: boolean; 
+        message?: string;
+        room?: any;
+      }) => {
+        isJoiningRef.current = false;
+        
+        if (response?.ok) {
+          console.log('✅ Unido a la sala exitosamente');
+          console.log('📦 Datos de la sala recibidos:', response.room);
+          joinedRef.current = true;
+          setJoined(true);
+          
+          if (response.room?.chatHistory && onNewMessage) {
+            response.room.chatHistory.forEach((msg: any) => {
+              const chatMessage: ChatMessage = {
+                id: `${msg.userId}-${msg.timestamp}`,
+                player_id: msg.userId,
+                username: msg.user,
+                message: msg.message,
+                timestamp: msg.timestamp,
+                roomCode: roomCode
+              };
+              onNewMessage(chatMessage);
+            });
+          }
+          
+          if (response.room) {
+            const normalizedPlayers = response.room.players.map((p: any) => {
+              return {
+                userId: p.userId || p._id,
+                name: p.name || 'Usuario Desconocido',
+                joinedAt: p.joinedAt || new Date()
+              };
+            });
+            
+            console.log('👥 Jugadores normalizados:', normalizedPlayers);
+            
+            queryClient.setQueryData<Room>(ROOM_KEYS.byCode(roomCode), {
+              code: response.room.code || roomCode,
+              roomId: response.room.roomId,
+              triviaId: response.room.triviaId,
+              hostId: response.room.hostId,
+              maxPlayers: response.room.maxPlayers || 4,
+              status: response.room.status || 'waiting',
+              players: normalizedPlayers,
+            });
+          }
+        } else {
+          console.error('❌ Error al unirse:', response?.message);
+          joinedRef.current = false;
+          setJoined(false);
+          
+          toast.error(response?.message || 'Error al unirse a la sala', {
+            duration: 4000,
+            position: 'top-center',
+          });
+        }
+      });
+    };
+
     // Handler para actualizaciones de sala
     const handleRoomUpdate = (data: RoomUpdateEvent) => {
       console.log('📡 room:update received:', data);
-
-      // Actualizar cache de React Query
+      
       queryClient.setQueryData<Room>(ROOM_KEYS.byCode(roomCode), (oldData) => {
         if (!oldData) return oldData;
-
+        
         if (data.event === 'playerJoined' && data.players) {
+          
+          const normalizedPlayers = data.players.map(p => {
+            const playerName = p.name || 'Usuario Desconocido';
+            
+            return {
+              userId: p.userId,
+              name: playerName,
+              joinedAt: new Date()
+            };
+          });
+          
           return {
             ...oldData,
-            players: data.players,
+            players: normalizedPlayers
           };
         }
-
+        
         if (data.event === 'playerLeft' && data.userId) {
           return {
             ...oldData,
-            players: oldData.players.filter((p) => p.userId !== data.userId),
+            players: oldData.players.filter((p) => p.userId !== data.userId)
           };
         }
-
+        
         return oldData;
       });
-
-      // Mostrar notificaciones con toast
+      
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      
       if (data.event === 'playerJoined' && data.player) {
-        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-        
-        // No mostrar toast si es el usuario actual uniéndose
         if (data.player.id !== currentUser.id) {
           toast.success(`🎮 ${data.player.name} se unió a la sala`, {
             duration: 3000,
             position: 'top-center',
-            style: {
-              background: '#10b981',
-              color: '#fff',
-              fontWeight: 'bold',
-            },
           });
         }
       }
-
+      
       if (data.event === 'playerLeft' && data.userId) {
         const room = queryClient.getQueryData<Room>(ROOM_KEYS.byCode(roomCode));
         const leftPlayer = room?.players.find((p) => p.userId === data.userId);
         
-        if (leftPlayer) {
+        if (leftPlayer && leftPlayer.userId !== currentUser.id) {
           toast.error(`👋 ${leftPlayer.name} salió de la sala`, {
             duration: 3000,
             position: 'top-center',
-            style: {
-              background: '#ef4444',
-              color: '#fff',
-              fontWeight: 'bold',
-            },
           });
         }
+      }
+    };
+
+    // Handler para mensajes de chat
+    const handleChatMessage = (message: any) => {
+      console.log('💬 room:chat:new received:', message);
+      
+      const chatMessage: ChatMessage = {
+        id: `${message.userId}-${message.timestamp}`,
+        player_id: message.userId,
+        username: message.user,
+        message: message.message,
+        timestamp: message.timestamp,
+        roomCode: roomCode
+      };
+      
+      if (onNewMessage) {
+        onNewMessage(chatMessage);
+      }
+      
+      // Toast para mensajes de otros usuarios
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      if (message.userId !== currentUser.id) {
+        toast(`${message.user}: ${message.message}`, {
+          duration: 3000,
+          position: 'bottom-right',
+          icon: '💬',
+        });
+      }
+    };
+
+    // Handler para conexión
+    const handleConnect = () => {
+      console.log('✅ Socket conectado');
+      setConnected(true);
+      
+      // Solo unirse si no estamos unidos ya
+      if (!joinedRef.current && !isJoiningRef.current) {
+        joinRoom();
+      }
+    };
+
+    // Handler para desconexión
+    const handleDisconnect = (reason: string) => {
+      console.log('❌ Socket desconectado:', reason);
+      setConnected(false);
+      
+      // Resetear estado de unión solo si fue desconexión del servidor
+      if (reason === 'io server disconnect' || reason === 'transport close') {
+        joinedRef.current = false;
+        setJoined(false);
+      }
+      
+      // Solo mostrar toast si no fue desconexión intencional
+      if (reason !== 'io client disconnect') {
+        toast.error('Conexión perdida. Reconectando...', {
+          duration: 3000,
+          position: 'top-center',
+        });
       }
     };
 
     // Handler para errores de conexión
     const handleConnectError = (error: Error) => {
-      console.error(MESSAGES.SOCKET_ERROR, error);
-      toast.error(MESSAGES.CONNECTION_ERROR, {
-        duration: 4000,
-        position: 'top-center',
-      });
+      console.error('❌ Error de conexión socket:', error);
+      setConnected(false);
     };
 
-    // Handler para reconexión
-    const handleReconnect = () => {
-      console.log(MESSAGES.SOCKET_CONNECTED, socket.id);
-      toast.success('Conexión restaurada', {
-        duration: 2000,
-        position: 'top-center',
-      });
-    };
-
-    // Suscribirse a los eventos
-    socket.on('room:update', handleRoomUpdate);
+    // Suscribirse a eventos
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
     socket.on('connect_error', handleConnectError);
-    socket.on('connect', handleReconnect);
+    socket.on('room:update', handleRoomUpdate);
+    socket.on('room:chat:new', handleChatMessage);
 
-    // Cleanup - remover todos los listeners
+    // Si el socket ya está conectado, unirse inmediatamente
+    if (socket.connected && !joinedRef.current && !isJoiningRef.current) {
+      joinRoom();
+    }
+
     return () => {
-      socket.off('room:update', handleRoomUpdate);
+      console.log(`🔌 Limpiando listeners de la sala: ${roomCode}`);
+      
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
       socket.off('connect_error', handleConnectError);
-      socket.off('connect', handleReconnect);
+      socket.off('room:update', handleRoomUpdate);
+      socket.off('room:chat:new', handleChatMessage);
+      
+      joinedRef.current = false;
+      isJoiningRef.current = false;
+      setJoined(false);
     };
-  }, [roomCode, queryClient]);
+  }, [roomCode, queryClient, onNewMessage]);
 
-  return null;
+  return { connected, joined };
 };
