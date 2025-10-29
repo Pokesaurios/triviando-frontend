@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AnimatedBackground } from '../components/ui/AnimatedBackground';
 import { LogoHeader } from '../components/ui/LogoHeader';
 import { MenuButton } from '../components/ui/MenuButton';
-import { TrendingUp, Trophy, Target, Award, BarChart3, Calendar, Brain, Zap, ArrowLeft } from 'lucide-react';
+import { Trophy, Calendar, Brain, Zap, ArrowLeft } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getGameResults } from '../lib/services/statsServices';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
