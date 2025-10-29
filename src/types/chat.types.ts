@@ -16,11 +16,17 @@ export interface ChatSendPayload {
 }
 
 export interface ChatMessageFromServer {
-  id: string;
-  player_id: string;
-  username: string;
-  message: string;
-  created_at: string;
-  avatar_color: string;
-  roomCode: string;
+  id?: string;
+  // canonical frontend shape
+  player_id?: string;
+  username?: string;
+  message?: string;
+  created_at?: string;
+  avatar_color?: string;
+  roomCode?: string;
+  // alternative server shapes (aliases)
+  userId?: string;
+  user?: string;
+  userName?: string;
+  timestamp?: string;
 }

@@ -41,9 +41,28 @@ export const SOCKET_CONFIG = {
 };
 
 export const SOCKET_EVENTS = {
+  // Room lifecycle
   ROOM_UPDATE: 'room:update',
+  ROOM_CREATE: 'room:create',
+  ROOM_JOIN: 'room:join',
+  ROOM_RECONNECT: 'room:reconnect',
+
+  // Chat
+  ROOM_CHAT: 'room:chat',
+  ROOM_CHAT_NEW: 'room:chat:new',
+
+  // Game control
   GAME_START: 'game:start',
+  GAME_STARTED: 'game:started',
   GAME_UPDATE: 'game:update',
-  PLAYER_JOINED: 'player:joined',
-  PLAYER_LEFT: 'player:left',
+  GAME_ENDED: 'game:ended',
+
+  // Round / buzzer flow
+  ROUND_SHOW_QUESTION: 'round:showQuestion',
+  ROUND_OPEN_BUTTON: 'round:openButton',
+  ROUND_PLAYER_WON_BUTTON: 'round:playerWonButton',
+  ROUND_ANSWER_REQUEST: 'round:answerRequest',
+  ROUND_ANSWER: 'round:answer',
+  ROUND_RESULT: 'round:result',
+  ROUND_BUTTON_PRESS: 'round:buttonPress',
 };

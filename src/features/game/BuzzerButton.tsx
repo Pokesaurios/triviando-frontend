@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap } from 'lucide-react';
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 
 interface BuzzerButtonProps {
   showBuzzer: boolean;
@@ -7,6 +8,7 @@ interface BuzzerButtonProps {
   playerWhoPressed: string | null;
   onPress: () => void;
   isBlocked: boolean;
+  isWaitingAck?: boolean;
 }
 
 export default function BuzzerButton({
@@ -15,6 +17,7 @@ export default function BuzzerButton({
   playerWhoPressed,
   onPress,
   isBlocked,
+  isWaitingAck,
 }: BuzzerButtonProps) {
   return (
     <AnimatePresence mode="wait">
@@ -30,7 +33,8 @@ export default function BuzzerButton({
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={onPress}
-            className="relative group"
+            className={`relative group ${isWaitingAck ? 'opacity-70 cursor-wait' : ''}`}
+            disabled={isWaitingAck}
           >
             <motion.div
               animate={{
@@ -45,6 +49,11 @@ export default function BuzzerButton({
             >
               <Zap size={80} className="text-white" />
             </motion.div>
+            {isWaitingAck && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <LoadingSpinner />
+              </div>
+            )}
             <motion.div
               animate={{ scale: [1, 1.2, 1] }}
               transition={{ duration: 1, repeat: Infinity }}

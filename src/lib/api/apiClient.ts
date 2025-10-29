@@ -96,7 +96,7 @@ class ApiClient {
   // Método POST
   async post<T>(
     endpoint: string,
-    body?: any,
+    body?: unknown,
     options: RequestOptions = {}
   ): Promise<ApiResponse<T>> {
     const { requiresAuth = false, ...fetchOptions } = options;
@@ -122,7 +122,7 @@ class ApiClient {
   // Método PUT
   async put<T>(
     endpoint: string,
-    body?: any,
+    body?: unknown,
     options: RequestOptions = {}
   ): Promise<ApiResponse<T>> {
     const { requiresAuth = false, ...fetchOptions } = options;

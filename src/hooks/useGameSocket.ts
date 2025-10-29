@@ -1,5 +1,7 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { getSocket } from '../lib/socket';
+import { SOCKET_EVENTS } from '../config/constants';
+import toast from 'react-hot-toast';
 import {
   GameState,
   RoundShowQuestionEvent,
@@ -18,6 +20,7 @@ interface UseGameSocketReturn {
   showBuzzer: boolean;
   buzzerPressed: boolean;
   playerWhoPressed: string | null;
+  playerWhoPressedId: string | null;
   showAnswerOptions: boolean;
   timeLeft: number;
   answerTimeLeft: number;
@@ -28,6 +31,8 @@ interface UseGameSocketReturn {
   pressBuzzer: () => void;
   submitAnswer: (selectedIndex: number) => void;
   isBlocked: boolean;
+  waitingBuzzerAck: boolean;
+  waitingAnswerAck: boolean;
 }
 
 export function useGameSocket(roomCode: string): UseGameSocketReturn {
@@ -37,6 +42,7 @@ export function useGameSocket(roomCode: string): UseGameSocketReturn {
   const [showBuzzer, setShowBuzzer] = useState(false);
   const [buzzerPressed, setBuzzerPressed] = useState(false);
   const [playerWhoPressed, setPlayerWhoPressed] = useState<string | null>(null);
+  const [playerWhoPressedId, setPlayerWhoPressedId] = useState<string | null>(null);
   const [showAnswerOptions, setShowAnswerOptions] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [answerTimeLeft, setAnswerTimeLeft] = useState(0);
@@ -47,10 +53,14 @@ export function useGameSocket(roomCode: string): UseGameSocketReturn {
   const [currentRoundSequence, setCurrentRoundSequence] = useState(0);
   const [answerEndsAt, setAnswerEndsAt] = useState(0);
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [waitingBuzzerAck, setWaitingBuzzerAck] = useState(false);
+  const [waitingAnswerAck, setWaitingAnswerAck] = useState(false);
+  const waitingTimers = useRef<{ buzzer?: number; answer?: number }>({});
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    setCurrentUserId(user.id || '');
+    const raf = requestAnimationFrame(() => setCurrentUserId(user.id || ''));
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   useEffect(() => {
@@ -82,11 +92,46 @@ export function useGameSocket(roomCode: string): UseGameSocketReturn {
       setCurrentQuestionNumber(0);
     };
 
-    socket.on('game:started', handleGameStarted);
+    socket.on(SOCKET_EVENTS.GAME_STARTED, handleGameStarted);
     return () => {
-      socket.off('game:started', handleGameStarted);
+      socket.off(SOCKET_EVENTS.GAME_STARTED, handleGameStarted);
     };
   }, []);
+
+  // Listen for an initial gameState dispatched by the page on reconnect so the hook
+  // can initialize immediately without waiting for further socket events.
+  useEffect(() => {
+    const handleInit = (e: Event) => {
+      try {
+        const ev = e as CustomEvent<GameState>;
+        if (ev?.detail) {
+          console.log('📥 Initial gameState received from page:', ev.detail);
+          setGameState(ev.detail);
+        }
+      } catch (err) {
+        console.warn('Failed to handle triviando:gameStateInit event', err);
+      }
+    };
+
+    window.addEventListener('triviando:gameStateInit', handleInit as EventListener);
+    return () => window.removeEventListener('triviando:gameStateInit', handleInit as EventListener);
+  }, []);
+  
+    useEffect(() => {
+      const socket = getSocket();
+      if (!socket) return;
+
+      const handleGameUpdate = (data: GameState) => {
+        console.log('🔄 Game update received:', data);
+        // Replace local gameState with the server authoritative state.
+        setGameState(data);
+      };
+
+      socket.on(SOCKET_EVENTS.GAME_UPDATE, handleGameUpdate);
+      return () => {
+        socket.off(SOCKET_EVENTS.GAME_UPDATE, handleGameUpdate);
+      };
+    }, []);
 
   useEffect(() => {
     const socket = getSocket();
@@ -105,9 +150,9 @@ export function useGameSocket(roomCode: string): UseGameSocketReturn {
       setCurrentOptions(null);
     };
 
-    socket.on('round:showQuestion', handleShowQuestion);
+    socket.on(SOCKET_EVENTS.ROUND_SHOW_QUESTION, handleShowQuestion);
     return () => {
-      socket.off('round:showQuestion', handleShowQuestion);
+      socket.off(SOCKET_EVENTS.ROUND_SHOW_QUESTION, handleShowQuestion);
     };
   }, []);
 
@@ -123,12 +168,75 @@ export function useGameSocket(roomCode: string): UseGameSocketReturn {
         setPlayerWhoPressed(null);
       }
     };
-
-    socket.on('round:openButton', handleOpenButton);
+    socket.on(SOCKET_EVENTS.ROUND_OPEN_BUTTON, handleOpenButton);
     return () => {
-      socket.off('round:openButton', handleOpenButton);
+      socket.off(SOCKET_EVENTS.ROUND_OPEN_BUTTON, handleOpenButton);
     };
   }, [currentRoundSequence]);
+
+  // Derive local UI state from authoritative gameState when it changes (useful on reconnect)
+  useEffect(() => {
+    if (!gameState) return;
+
+    // Defer all state updates to the next animation frame to avoid synchronous setState in effect
+    const raf = requestAnimationFrame(() => {
+      // current question number (human-friendly)
+      setCurrentQuestionNumber((gameState.currentQuestionIndex || 0) + 1);
+
+      // Timers: question read timer and answer window timer come from server when available
+      const qReadEnds = gameState.questionReadEndsAt;
+      if (qReadEnds) {
+        setTimeLeft(Math.max(0, Math.ceil((qReadEnds - Date.now()) / 1000)));
+      } else {
+        setTimeLeft(0);
+      }
+
+      const ansEnds = gameState.answerWindowEndsAt;
+      if (ansEnds) {
+        setAnswerEndsAt(ansEnds);
+        setAnswerTimeLeft(Math.max(0, Math.ceil((ansEnds - Date.now()) / 1000)));
+      } else {
+        setAnswerEndsAt(0);
+        setAnswerTimeLeft(0);
+      }
+
+  // Status-driven UI: accept both legacy 'buzzer-open' and new 'open'
+  setShowBuzzer(gameState.status === 'open' || gameState.status === 'buzzer-open');
+
+      // If server indicates answering status, try to infer which player is answering
+      if (gameState.status === 'answering') {
+        // Winner inference: player with blocked === false while others true
+        const blocked = gameState.blocked || {};
+        const entries = Object.entries(blocked);
+        let winnerId: string | null = null;
+        if (entries.length > 0) {
+          const candidates = entries.filter(([, value]) => value === false).map(([key]) => key);
+          if (candidates.length === 1) winnerId = candidates[0];
+        }
+
+        setPlayerWhoPressedId(winnerId);
+        const winnerPlayer = gameState.players.find((p) => p.userId === winnerId);
+        setPlayerWhoPressed(winnerPlayer?.name || null);
+
+        setShowAnswerOptions(!!winnerId && winnerId === currentUserId);
+        setBuzzerPressed(!!winnerId);
+        setShowBuzzer(false);
+      } else {
+        // not answering
+        setShowAnswerOptions(false);
+        setBuzzerPressed(false);
+        setPlayerWhoPressed(null);
+        setPlayerWhoPressedId(null);
+      }
+
+      // Update local copy of scores if present
+      if (gameState.scores) {
+        setGameState((prev) => ({ ...(prev || {}), scores: gameState.scores } as GameState));
+      }
+    });
+
+    return () => cancelAnimationFrame(raf);
+  }, [gameState, currentUserId]);
 
   useEffect(() => {
     const socket = getSocket();
@@ -139,13 +247,13 @@ export function useGameSocket(roomCode: string): UseGameSocketReturn {
       if (data.roundSequence === currentRoundSequence) {
         setBuzzerPressed(true);
         setPlayerWhoPressed(data.name);
+        setPlayerWhoPressedId(data.playerId || null);
         setShowBuzzer(false);
       }
     };
-
-    socket.on('round:playerWonButton', handlePlayerWonButton);
+    socket.on(SOCKET_EVENTS.ROUND_PLAYER_WON_BUTTON, handlePlayerWonButton);
     return () => {
-      socket.off('round:playerWonButton', handlePlayerWonButton);
+      socket.off(SOCKET_EVENTS.ROUND_PLAYER_WON_BUTTON, handlePlayerWonButton);
     };
   }, [currentRoundSequence]);
 
@@ -162,10 +270,9 @@ export function useGameSocket(roomCode: string): UseGameSocketReturn {
         setAnswerTimeLeft(Math.ceil(data.answerTimeoutMs / 1000));
       }
     };
-
-    socket.on('round:answerRequest', handleAnswerRequest);
+    socket.on(SOCKET_EVENTS.ROUND_ANSWER_REQUEST, handleAnswerRequest);
     return () => {
-      socket.off('round:answerRequest', handleAnswerRequest);
+      socket.off(SOCKET_EVENTS.ROUND_ANSWER_REQUEST, handleAnswerRequest);
     };
   }, [currentRoundSequence]);
 
@@ -186,9 +293,9 @@ export function useGameSocket(roomCode: string): UseGameSocketReturn {
       }
     };
 
-    socket.on('round:result', handleResult);
+    socket.on(SOCKET_EVENTS.ROUND_RESULT, handleResult);
     return () => {
-      socket.off('round:result', handleResult);
+      socket.off(SOCKET_EVENTS.ROUND_RESULT, handleResult);
     };
   }, [currentRoundSequence, gameState]);
 
@@ -205,41 +312,100 @@ export function useGameSocket(roomCode: string): UseGameSocketReturn {
       }
     };
 
-    socket.on('game:ended', handleGameEnded);
+    socket.on(SOCKET_EVENTS.GAME_ENDED, handleGameEnded);
     return () => {
-      socket.off('game:ended', handleGameEnded);
+      socket.off(SOCKET_EVENTS.GAME_ENDED, handleGameEnded);
     };
   }, [gameState]);
 
   const pressBuzzer = useCallback(() => {
     const socket = getSocket();
-    if (!socket || !showBuzzer || buzzerPressed) return;
-    
+    if (!socket || !showBuzzer || buzzerPressed || waitingBuzzerAck) return;
+
     const eventId = `buzz-${Date.now()}-${Math.random()}`;
     console.log('🔴 Pressing buzzer:', { roomCode, currentRoundSequence, eventId });
-    
-    socket.emit('round:buttonPress', {
-      code: roomCode,
-      roundSequence: currentRoundSequence,
-      eventId,
-    });
-  }, [showBuzzer, buzzerPressed, roomCode, currentRoundSequence]);
+
+    // mark waiting and set a fallback timeout
+    setWaitingBuzzerAck(true);
+    waitingTimers.current.buzzer = window.setTimeout(() => {
+      setWaitingBuzzerAck(false);
+      delete waitingTimers.current.buzzer;
+    }, 2000) as unknown as number;
+
+    socket.emit(
+      SOCKET_EVENTS.ROUND_BUTTON_PRESS,
+      {
+        code: roomCode,
+        roundSequence: currentRoundSequence,
+        eventId,
+      },
+      (ack?: { ok?: boolean; message?: string }) => {
+        // clear waiting state
+        if (waitingTimers.current.buzzer) {
+          clearTimeout(waitingTimers.current.buzzer as number);
+          delete waitingTimers.current.buzzer;
+        }
+        setWaitingBuzzerAck(false);
+
+        if (!ack) return;
+        if (ack.ok) {
+          // optimistic UI: reflect that user attempted and server accepted the attempt
+          setBuzzerPressed(true);
+          setShowBuzzer(false);
+          toast.success('Has presionado el botón. Esperando respuesta...');
+        } else {
+          toast.error(ack.message || 'Otro jugador ganó el botón');
+        }
+      }
+    );
+  }, [showBuzzer, buzzerPressed, roomCode, currentRoundSequence, waitingBuzzerAck]);
 
   const submitAnswer = useCallback((selectedIndex: number) => {
     const socket = getSocket();
-    if (!socket || !showAnswerOptions) return;
-    
+    if (!socket || !showAnswerOptions || waitingAnswerAck) return;
+
     const eventId = `answer-${Date.now()}-${Math.random()}`;
     console.log('📝 Submitting answer:', { roomCode, currentRoundSequence, selectedIndex, eventId });
-    
-    socket.emit('round:answer', {
-      code: roomCode,
-      roundSequence: currentRoundSequence,
-      selectedIndex,
-      eventId,
-    });
+
+    // mark waiting and set fallback
+    setWaitingAnswerAck(true);
+    waitingTimers.current.answer = window.setTimeout(() => {
+      setWaitingAnswerAck(false);
+      delete waitingTimers.current.answer;
+    }, 2000) as unknown as number;
+
+    socket.emit(
+      SOCKET_EVENTS.ROUND_ANSWER,
+      {
+        code: roomCode,
+        roundSequence: currentRoundSequence,
+        selectedIndex,
+        eventId,
+      },
+      (ack?: { ok?: boolean; correct?: boolean; message?: string }) => {
+        // clear waiting state
+        if (waitingTimers.current.answer) {
+          clearTimeout(waitingTimers.current.answer as number);
+          delete waitingTimers.current.answer;
+        }
+        setWaitingAnswerAck(false);
+
+        if (!ack) return;
+        if (!ack.ok) {
+          toast.error(ack.message || 'No se pudo enviar la respuesta');
+        } else {
+          if (ack.correct) {
+            toast.success('¡Respuesta correcta!');
+          } else {
+            toast('Respuesta incorrecta', { icon: '⚠️' });
+          }
+        }
+      }
+    );
+
+    // hide local answer UI optimistically; server will emit result/update
     setShowAnswerOptions(false);
-  }, [showAnswerOptions, roomCode, currentRoundSequence]);
+  }, [showAnswerOptions, roomCode, currentRoundSequence, waitingAnswerAck]);
 
   const isBlocked = gameState?.blocked?.[currentUserId] || false;
 
@@ -250,6 +416,7 @@ export function useGameSocket(roomCode: string): UseGameSocketReturn {
     showBuzzer,
     buzzerPressed,
     playerWhoPressed,
+    playerWhoPressedId,
     showAnswerOptions,
     timeLeft,
     answerTimeLeft,
@@ -260,5 +427,7 @@ export function useGameSocket(roomCode: string): UseGameSocketReturn {
     pressBuzzer,
     submitAnswer,
     isBlocked,
+    waitingBuzzerAck,
+    waitingAnswerAck,
   };
 }

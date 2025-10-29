@@ -11,6 +11,7 @@ import { useClipboard } from '../hooks/useClipboard';
 import { useRoomSocket } from '../hooks/useRoomSocket';
 import { useChat } from '../hooks/useChat';
 import { connectSocket, getSocket } from '../lib/socket';
+import { SOCKET_EVENTS } from '../config/constants';
 
 export default function WaitingRoomPage() {
   const { code } = useParams<{ code: string }>();
@@ -68,21 +69,20 @@ export default function WaitingRoomPage() {
   }, [isError, error, navigate]);
 
   useEffect(() => {
-  const socket = getSocket();
-  if (!socket) return;
+    const socket = getSocket();
+    if (!socket) return;
 
-  const handleGameStarted = (data: any) => {
-    console.log('Game started, redirecting to game...', data);
-    toast.success('¡El juego ha comenzado!');
-    navigate(`/game/${code}`);
-  };
+    const handleGameStarted = () => {
+      toast.success('¡El juego ha comenzado!');
+      navigate(`/game/${code}`);
+    };
 
-  socket.on('game:started', handleGameStarted);
+    socket.on(SOCKET_EVENTS.GAME_STARTED, handleGameStarted);
 
-  return () => {
-    socket.off('game:started', handleGameStarted);
-  };
-}, [code, navigate]);
+    return () => {
+      socket.off(SOCKET_EVENTS.GAME_STARTED, handleGameStarted);
+    };
+  }, [code, navigate]);
   
   if (isLoading) {
     return (
@@ -137,11 +137,10 @@ export default function WaitingRoomPage() {
           <WaitingRoomContainer
             room={room}
             currentUserId={currentUser.id}
-            currentUserName={currentUser.name || 'Usuario'}
             messages={messages}
             onSendMessage={(messageText) => {
               if (!code || !currentUser.id) return;
-              sendMessage(messageText, code, currentUser.id, currentUser.name);
+              sendMessage(messageText, code);
             }}
             isChatConnected={isConnected}
           />

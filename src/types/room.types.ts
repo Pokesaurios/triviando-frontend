@@ -8,6 +8,7 @@ export interface Player {
 
 export interface Room {
   code: string;
+  roomId?: string;
   hostId: string;
   triviaId: string;
   status: 'waiting' | 'playing' | 'finished';

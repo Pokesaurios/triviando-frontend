@@ -16,9 +16,13 @@ export interface GameState {
   currentQuestionIndex: number;
   scores: Record<string, number>;
   players: GamePlayer[];
-  status: 'waiting' | 'reading' | 'buzzer-open' | 'answering' | 'result' | 'finished';
+  status: 'waiting' | 'reading' | 'open' | 'buzzer-open' | 'answering' | 'result' | 'finished';
   roundSequence: number;
   blocked: Record<string, boolean>;
+  // Optional timing fields persisted by server for synchronization
+  questionReadEndsAt?: number;
+  answerWindowEndsAt?: number;
+  tieBreakerPlayed?: boolean;
 }
 
 export interface RoundShowQuestionEvent {

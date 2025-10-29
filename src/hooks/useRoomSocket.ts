@@ -2,13 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getSocket } from '../lib/socket';
 import toast from 'react-hot-toast';
-import type { Room } from '../types/room.types';
-import type { ChatMessage } from '../types/chat.types';
+import type { Room, Player } from '../types/room.types';
+import type { ChatMessage, ChatMessageFromServer } from '../types/chat.types';
+import type { BackendPlayerRaw, JoinRoomSocketResponse } from '../types/backend.types';
+import { SOCKET_CONFIG, SOCKET_EVENTS } from '../config/constants';
 
 interface RoomUpdateEvent {
   event: 'playerJoined' | 'playerLeft' | 'roomCreated';
   player?: { id: string; name: string };
-  players?: Array<{ userId: string; name: string }>;
+  // reuse backend raw player shape for updates to keep normalization consistent
+  players?: BackendPlayerRaw[];
   userId?: string;
   code?: string;
   roomId?: string;
@@ -16,6 +19,20 @@ interface RoomUpdateEvent {
 
 interface UseRoomSocketOptions {
   onNewMessage?: (message: ChatMessage) => void;
+  // Optional callback when the players list in the room changes
+  onPlayersChanged?: (players: Player[]) => void;
+}
+
+interface IncomingChatMsg {
+  id?: string;
+  userId?: string;
+  user?: string;
+  userName?: string;
+  username?: string;
+  message?: string;
+  timestamp?: string;
+  created_at?: string;
+  avatar_color?: string;
 }
 
 export const ROOM_KEYS = {
@@ -23,19 +40,37 @@ export const ROOM_KEYS = {
   byCode: (code: string) => ['rooms', code] as const,
 };
 
-// Función helper para normalizar jugadores
-const normalizePlayer = (p: any) => {
+// Función helper para normalizar jugadores -> devuelve `Player` fuerte
+const normalizePlayer = (p: BackendPlayerRaw | { userId?: string; _id?: string; name?: string; user?: unknown; joinedAt?: string }) : Player | null => {
   // Intentar obtener el nombre de múltiples fuentes posibles
-  const playerName = p.name || p.userName || p.username || p.user || 'Usuario Desconocido';
-  const playerId = p.userId || p.id || p._id;
-  
-  console.log('🔍 Normalizando jugador:', { original: p, normalized: { userId: playerId, name: playerName } });
-  
-  return {
+  let playerName = '';
+  if (typeof p.user === 'object' && p.user && 'name' in p.user) {
+    playerName = (p.user as { name?: string }).name || playerName;
+  } else if (typeof p.user === 'string') {
+    playerName = p.user;
+  } else if (p.name) {
+    playerName = p.name;
+  }
+  const playerId = (typeof p.userId === 'string' && p.userId) || p._id || (typeof p.user === 'object' && (p.user as { _id?: string })._id) || '';
+
+  if (!playerId) {
+    console.warn('normalizePlayer: missing player id, skipping', p);
+    return null;
+  }
+
+  const joinedAtStr = p.joinedAt ? new Date(p.joinedAt as string).toISOString() : new Date().toISOString();
+
+  // Build a typed Player
+  const player: Player = {
     userId: playerId,
-    name: playerName,
-    joinedAt: p.joinedAt || new Date()
+    name: playerName || 'Jugador',
+    joinedAt: joinedAtStr,
   };
+
+  // Log debug info at verbose level
+  console.log('🔍 Normalizando jugador:', { original: p, normalized: player });
+
+  return player;
 };
 
 export const useRoomSocket = (
@@ -43,7 +78,7 @@ export const useRoomSocket = (
   options?: UseRoomSocketOptions
 ) => {
   const queryClient = useQueryClient();
-  const { onNewMessage } = options || {};
+  const { onNewMessage, onPlayersChanged } = options || {};
   
   const [connected, setConnected] = useState(false);
   const [joined, setJoined] = useState(false);
@@ -60,7 +95,7 @@ export const useRoomSocket = (
       return;
     }
 
-    const joinRoom = () => {
+  const joinRoom = () => {
       // Prevenir múltiples llamadas simultáneas
       if (joinedRef.current || isJoiningRef.current) {
         console.log('Ya unido o intentando unirse, saltando...');
@@ -68,13 +103,9 @@ export const useRoomSocket = (
       }
 
       isJoiningRef.current = true;
-      console.log(`🔌 Uniéndose a la sala: ${roomCode}`);
+  console.log(`🔌 Uniéndose a la sala: ${roomCode}`);
       
-      socket.emit('room:join', { code: roomCode }, (response?: { 
-        ok: boolean; 
-        message?: string;
-        room?: any;
-      }) => {
+      socket.emit(SOCKET_EVENTS.ROOM_JOIN, { code: roomCode }, (response?: JoinRoomSocketResponse) => {
         isJoiningRef.current = false;
         
         if (response?.ok) {
@@ -85,14 +116,16 @@ export const useRoomSocket = (
           
           // Cargar historial de chat
           if (response.room?.chatHistory && onNewMessage) {
-            response.room.chatHistory.forEach((msg: any) => {
+            response.room.chatHistory.forEach((msg: ChatMessageFromServer) => {
+              const created_at = msg.created_at || msg.timestamp || new Date().toISOString();
+              const uid = msg.userId || msg.player_id || '';
               const chatMessage: ChatMessage = {
-                id: `${msg.userId}-${msg.timestamp}`,
-                player_id: msg.userId,
+                id: msg.id || `${uid}-${created_at}`,
+                player_id: uid,
                 username: msg.user || msg.userName || msg.username || 'Usuario',
-                message: msg.message,
-                timestamp: msg.timestamp,
-                roomCode: roomCode
+                message: msg.message || '',
+                created_at,
+                avatar_color: msg.avatar_color || ''
               };
               onNewMessage(chatMessage);
             });
@@ -102,17 +135,33 @@ export const useRoomSocket = (
           if (response.room) {
             console.log('👥 Jugadores originales del backend:', response.room.players);
             
-            const normalizedPlayers = response.room.players.map(normalizePlayer);
-            
+            const normalizedPlayers = (response.room.players || [])
+              .map((pl) => normalizePlayer(pl))
+              .filter((p): p is Player => p !== null);
+
             console.log('✅ Jugadores normalizados:', normalizedPlayers);
-            
+
+            // Call explicit onPlayersChanged callback if provided
+            if (typeof onPlayersChanged === 'function') {
+              try {
+                onPlayersChanged(normalizedPlayers);
+              } catch (err) {
+                console.warn('onPlayersChanged callback threw', err);
+              }
+            }
+
+            // Normalize status to expected union
+            let status: 'waiting' | 'playing' | 'finished' = 'waiting';
+            if (response.room.status === 'in-game' || response.room.status === 'playing') status = 'playing';
+            if (response.room.status === 'finished') status = 'finished';
+
             queryClient.setQueryData<Room>(ROOM_KEYS.byCode(roomCode), {
               code: response.room.code || roomCode,
               roomId: response.room.roomId,
-              triviaId: response.room.triviaId,
-              hostId: response.room.hostId,
+              triviaId: response.room.triviaId || '',
+              hostId: response.room.hostId || '',
               maxPlayers: response.room.maxPlayers || 4,
-              status: response.room.status || 'waiting',
+              status,
               players: normalizedPlayers,
               createdAt: response.room.createdAt || new Date().toISOString(),
               updatedAt: response.room.updatedAt || new Date().toISOString(),
@@ -132,7 +181,7 @@ export const useRoomSocket = (
     };
 
     // Handler para actualizaciones de sala
-    const handleRoomUpdate = (data: RoomUpdateEvent) => {
+  const handleRoomUpdate = (data: RoomUpdateEvent) => {
       console.log('📡 room:update received:', JSON.stringify(data, null, 2));
       
       queryClient.setQueryData<Room>(ROOM_KEYS.byCode(roomCode), (oldData) => {
@@ -140,11 +189,13 @@ export const useRoomSocket = (
         
         if (data.event === 'playerJoined' && data.players) {
           console.log('➕ Actualizando lista de jugadores (playerJoined):', data.players);
-          
-          const normalizedPlayers = data.players.map(normalizePlayer);
-          
+
+          const normalizedPlayers = data.players
+            .map(normalizePlayer)
+            .filter((p): p is Player => p !== null);
+
           console.log('✅ Jugadores normalizados (playerJoined):', normalizedPlayers);
-          
+
           return {
             ...oldData,
             players: normalizedPlayers
@@ -190,16 +241,17 @@ export const useRoomSocket = (
     };
 
     // Handler para mensajes de chat
-    const handleChatMessage = (message: any) => {
+  const handleChatMessage = (message: IncomingChatMsg) => {
       console.log('💬 room:chat:new received:', message);
       
+      const created_at = message.created_at || message.timestamp || new Date().toISOString();
       const chatMessage: ChatMessage = {
-        id: `${message.userId}-${message.timestamp}`,
-        player_id: message.userId,
+        id: message.id || `${message.userId}-${created_at}`,
+        player_id: message.userId || '',
         username: message.user || message.userName || message.username || 'Usuario',
-        message: message.message,
-        timestamp: message.timestamp,
-        roomCode: roomCode
+        message: message.message || '',
+        created_at,
+        avatar_color: message.avatar_color || ''
       };
       
       if (onNewMessage) {
@@ -255,11 +307,11 @@ export const useRoomSocket = (
     };
 
     // Suscribirse a eventos
-    socket.on('connect', handleConnect);
-    socket.on('disconnect', handleDisconnect);
-    socket.on('connect_error', handleConnectError);
-    socket.on('room:update', handleRoomUpdate);
-    socket.on('room:chat:new', handleChatMessage);
+    socket.on(SOCKET_CONFIG.EVENTS.CONNECT, handleConnect);
+    socket.on(SOCKET_CONFIG.EVENTS.DISCONNECT, handleDisconnect);
+    socket.on(SOCKET_CONFIG.EVENTS.CONNECT_ERROR, handleConnectError);
+    socket.on(SOCKET_EVENTS.ROOM_UPDATE, handleRoomUpdate);
+    socket.on(SOCKET_EVENTS.ROOM_CHAT_NEW, handleChatMessage);
 
     // Si el socket ya está conectado, unirse inmediatamente
     if (socket.connected && !joinedRef.current && !isJoiningRef.current) {
@@ -269,17 +321,17 @@ export const useRoomSocket = (
     return () => {
       console.log(`🔌 Limpiando listeners de la sala: ${roomCode}`);
       
-      socket.off('connect', handleConnect);
-      socket.off('disconnect', handleDisconnect);
-      socket.off('connect_error', handleConnectError);
-      socket.off('room:update', handleRoomUpdate);
-      socket.off('room:chat:new', handleChatMessage);
+  socket.off(SOCKET_CONFIG.EVENTS.CONNECT, handleConnect);
+  socket.off(SOCKET_CONFIG.EVENTS.DISCONNECT, handleDisconnect);
+  socket.off(SOCKET_CONFIG.EVENTS.CONNECT_ERROR, handleConnectError);
+  socket.off(SOCKET_EVENTS.ROOM_UPDATE, handleRoomUpdate);
+  socket.off(SOCKET_EVENTS.ROOM_CHAT_NEW, handleChatMessage);
       
       joinedRef.current = false;
       isJoiningRef.current = false;
       setJoined(false);
     };
-  }, [roomCode, queryClient, onNewMessage]);
+  }, [roomCode, queryClient, onNewMessage, onPlayersChanged]);
 
   return { connected, joined };
 };

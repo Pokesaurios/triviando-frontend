@@ -1,12 +1,13 @@
 import { useState, useCallback, useEffect } from 'react';
 import { getSocket } from '../lib/socket';
 import { ChatMessage } from '../types/chat.types';
+import { SOCKET_CONFIG, SOCKET_EVENTS } from '../config/constants';
 
 interface UseChatReturn {
   messages: ChatMessage[];
   addMessage: (message: ChatMessage) => void;
   clearMessages: () => void;
-  sendMessage: (messageText: string, roomCode: string, userId: string, userName: string) => void;
+  sendMessage: (messageText: string, roomCode: string) => void;
   isConnected: boolean;
   loadChatHistory: (roomCode: string) => void;
 }
@@ -20,26 +21,38 @@ export const useChat = (): UseChatReturn => {
     
     if (socket) {
       setIsConnected(socket.connected);
-      
+
       const handleConnect = () => {
         console.log('✅ Chat: Socket conectado');
         setIsConnected(true);
       };
-      
+
       const handleDisconnect = () => {
         console.log('❌ Chat: Socket desconectado');
         setIsConnected(false);
       };
-      
-      socket.on('connect', handleConnect);
-      socket.on('disconnect', handleDisconnect);
-      
+
+      socket.on(SOCKET_CONFIG.EVENTS.CONNECT, handleConnect);
+      socket.on(SOCKET_CONFIG.EVENTS.DISCONNECT, handleDisconnect);
+
       return () => {
-        socket.off('connect', handleConnect);
-        socket.off('disconnect', handleDisconnect);
+        socket.off(SOCKET_CONFIG.EVENTS.CONNECT, handleConnect);
+        socket.off(SOCKET_CONFIG.EVENTS.DISCONNECT, handleDisconnect);
       };
     }
   }, []);
+
+  interface IncomingChatMsg {
+    id?: string;
+    userId?: string;
+    user?: string;
+    userName?: string;
+    username?: string;
+    message?: string;
+    timestamp?: string;
+    created_at?: string;
+    avatar_color?: string;
+  }
 
   const addMessage = useCallback((message: ChatMessage) => {
     setMessages(prev => {
@@ -55,12 +68,7 @@ export const useChat = (): UseChatReturn => {
     setMessages([]);
   }, []);
 
-  const sendMessage = useCallback((
-    messageText: string, 
-    roomCode: string, 
-    userId: string, 
-    userName: string
-  ) => {
+  const sendMessage = useCallback((messageText: string, roomCode: string) => {
     const socket = getSocket();
     
     if (!socket || !socket.connected) {
@@ -75,9 +83,9 @@ export const useChat = (): UseChatReturn => {
     };
 
     console.log('📤 Enviando mensaje:', messagePayload);
-    
-    // Emitir mensaje al servidor (backend usa 'room:chat')
-    socket.emit('room:chat', messagePayload, (response?: { 
+
+    // Emitir mensaje al servidor (backend usa ROOM_CHAT)
+    socket.emit(SOCKET_EVENTS.ROOM_CHAT, messagePayload, (response?: { 
       ok: boolean; 
       message?: string;
     }) => {
@@ -99,24 +107,27 @@ export const useChat = (): UseChatReturn => {
     }
 
     // Solicitar reconexión para obtener historial
-    socket.emit('room:reconnect', { code: roomCode }, (response?: {
+    socket.emit(SOCKET_EVENTS.ROOM_RECONNECT, { code: roomCode }, (response?: {
       ok: boolean;
-      room?: { chatHistory: any[] };
+      room?: { chatHistory: IncomingChatMsg[] };
       message?: string;
     }) => {
       if (response?.ok && response.room?.chatHistory) {
         console.log('📜 Cargando historial de chat:', response.room.chatHistory);
-        
-        // Transformar mensajes del backend al formato del frontend
-        const transformedMessages: ChatMessage[] = response.room.chatHistory.map((msg: any) => ({
-          id: `${msg.userId}-${msg.timestamp}`,
-          player_id: msg.userId,
-          username: msg.user,
-          message: msg.message,
-          timestamp: msg.timestamp,
-          roomCode: roomCode
-        }));
-        
+
+        // Transformar mensajes del backend al formato del frontend (ChatMessage)
+        const transformedMessages: ChatMessage[] = response.room.chatHistory.map((msg) => {
+          const created_at = msg.created_at || msg.timestamp || new Date().toISOString();
+          return {
+            id: msg.id || `${msg.userId}-${created_at}`,
+            player_id: msg.userId || '',
+            username: msg.user || msg.userName || msg.username || 'Usuario',
+            message: msg.message || '',
+            created_at,
+            avatar_color: msg.avatar_color || ''
+          };
+        });
+
         setMessages(transformedMessages);
       } else {
         console.warn('No se pudo cargar el historial:', response?.message);

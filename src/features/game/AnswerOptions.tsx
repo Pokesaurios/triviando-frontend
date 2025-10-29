@@ -1,13 +1,15 @@
 import { motion } from 'framer-motion';
 import { Clock } from 'lucide-react';
+import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 
 interface AnswerOptionsProps {
   options: string[];
   onSelect: (index: number) => void;
   timeLeft: number;
+  isWaitingAck?: boolean;
 }
 
-export default function AnswerOptions({ options, onSelect, timeLeft }: AnswerOptionsProps) {
+export default function AnswerOptions({ options, onSelect, timeLeft, isWaitingAck }: AnswerOptionsProps) {
   const letters = ['A', 'B', 'C', 'D'];
   const colors = [
     'from-blue-500 to-blue-600',
@@ -39,7 +41,8 @@ export default function AnswerOptions({ options, onSelect, timeLeft }: AnswerOpt
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => onSelect(index)}
-            className={`bg-gradient-to-r ${colors[index]} text-white font-bold py-6 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all text-left flex items-center gap-4`}
+            disabled={isWaitingAck}
+            className={`bg-gradient-to-r ${colors[index]} text-white font-bold py-6 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all text-left flex items-center gap-4 ${isWaitingAck ? 'opacity-60 cursor-wait' : ''}`}
           >
             <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-2xl font-bold flex-shrink-0">
               {letters[index]}
@@ -48,6 +51,11 @@ export default function AnswerOptions({ options, onSelect, timeLeft }: AnswerOpt
           </motion.button>
         ))}
       </div>
+      {isWaitingAck && (
+        <div className="mt-4 flex items-center justify-center">
+          <LoadingSpinner />
+        </div>
+      )}
     </motion.div>
   );
 }

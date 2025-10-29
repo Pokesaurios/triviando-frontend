@@ -10,8 +10,11 @@ import GameRanking from '../features/game/GameRanking';
 import GameResult from '../features/game/GameResult';
 import { ChatPanel } from '../features/chat/ChatPanel';
 import { getSocket, connectSocket } from '../lib/socket';
+import type { ReconnectResponse } from '../types/backend.types';
+import type { BackendPlayerRaw } from '../types/backend.types';
 import { GamePlayer } from '../types/game.types';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { useRoomSocket } from '../hooks/useRoomSocket';
 
 export default function GamePage() {
   const { code } = useParams<{ code: string }>();
@@ -27,6 +30,7 @@ export default function GamePage() {
     showBuzzer,
     buzzerPressed,
     playerWhoPressed,
+    playerWhoPressedId,
     showAnswerOptions,
     timeLeft,
     answerTimeLeft,
@@ -37,14 +41,24 @@ export default function GamePage() {
     pressBuzzer,
     submitAnswer,
     isBlocked,
+    waitingBuzzerAck,
+    waitingAnswerAck,
   } = useGameSocket(code || '');
+
+  // Animated background is handled by the reusable AnimatedBackground component
+  
 
   const { 
     messages, 
     addMessage, 
-    sendMessage,
-    isConnected 
+    sendMessage, 
+    isConnected,
+    loadChatHistory 
   } = useChat();
+
+  const { connected } = useRoomSocket(code || '', {
+      onNewMessage: addMessage
+    });
 
   // Initialize socket connection and get user
   useEffect(() => {
@@ -56,13 +70,15 @@ export default function GamePage() {
       return;
     }
 
-    setCurrentUserId(user.id);
-
-    // Ensure socket is connected
+    // Ensure socket is connected (do this before returning)
     const socket = getSocket();
-    if (!socket || !socket.connected) {
-      connectSocket(token);
+    if (!socket?.connected) {
+      connectSocket(token as string);
     }
+
+    // Defer setState to the next animation frame to avoid a synchronous setState inside the effect
+    const rafId = requestAnimationFrame(() => setCurrentUserId(user.id));
+    return () => cancelAnimationFrame(rafId);
   }, [navigate]);
 
   // Reconnect to room and get initial state
@@ -78,17 +94,22 @@ export default function GamePage() {
     const reconnectToRoom = () => {
       console.log('🔄 Reconnecting to room:', code);
       
-      socket.emit('room:reconnect', { code }, (response: any) => {
+      socket.emit('room:reconnect', { code }, (response: ReconnectResponse) => {
         console.log('📥 Reconnect response:', response);
-        
+
         if (response.ok && response.room) {
           // Validar y mapear jugadores correctamente
-          const roomPlayers = response.room.players || [];
+          const roomPlayers: BackendPlayerRaw[] = response.room.players || [];
           const validPlayers = roomPlayers
-            .filter((p: any) => p && p.userId)
-            .map((p: any) => ({
-              userId: p.userId.toString ? p.userId.toString() : p.userId,
-              name: p.name || 'Jugador',
+            .filter((p) => p && (p.userId || p._id))
+            .map((p) => ({
+              userId: (typeof p.userId === 'string' && p.userId) || (p._id as string) || '',
+              name:
+                p.name ||
+                (typeof p.user === 'string'
+                  ? p.user
+                  : (p.user && (p.user as { name?: string }).name)) ||
+                'Jugador',
             }));
           
           console.log('👥 Valid players:', validPlayers);
@@ -97,6 +118,12 @@ export default function GamePage() {
           // If there's gameState in the response, it means game is in progress
           if (response.room.gameState) {
             console.log('🎮 Game state restored:', response.room.gameState);
+            // Dispatch a client-side event so hooks (useGameSocket) can initialize immediately
+            try {
+              window.dispatchEvent(new CustomEvent('triviando:gameStateInit', { detail: response.room.gameState }));
+            } catch (err) {
+              console.warn('Unable to dispatch gameStateInit event:', err);
+            }
           }
           
           setIsReconnecting(false);
@@ -122,7 +149,8 @@ export default function GamePage() {
   // Update players from gameState
   useEffect(() => {
     if (gameState?.players) {
-      setPlayers(gameState.players);
+      const raf = requestAnimationFrame(() => setPlayers(gameState.players));
+      return () => cancelAnimationFrame(raf);
     }
   }, [gameState]);
 
@@ -130,9 +158,14 @@ export default function GamePage() {
   const handleSendMessage = (messageText: string) => {
     if (!code || !currentUserId) return;
     
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    sendMessage(messageText, code, currentUserId, user.name || 'Usuario');
+    sendMessage(messageText, code);
   };
+
+  useEffect(() => {
+    if (code && connected) {
+      loadChatHistory(code);
+    }
+  }, [code, connected, loadChatHistory]);
 
   const handleGoHome = () => {
     navigate('/dashboard');
@@ -165,31 +198,6 @@ export default function GamePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 relative overflow-hidden">
-      {/* Animated background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(12)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute bg-white/10 rounded-full"
-            style={{
-              width: Math.random() * 100 + 50,
-              height: Math.random() * 100 + 50,
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-            }}
-            animate={{
-              y: [0, -40, 0],
-              x: [0, Math.random() * 30 - 15, 0],
-            }}
-            transition={{
-              duration: Math.random() * 5 + 4,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-          />
-        ))}
-      </div>
-
       <div className="relative z-10 p-4 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
@@ -214,11 +222,28 @@ export default function GamePage() {
 
             {/* Buzzer or answer options */}
             {showAnswerOptions && currentOptions ? (
-              <AnswerOptions
-                options={currentOptions}
-                onSelect={submitAnswer}
-                timeLeft={answerTimeLeft}
-              />
+              // Only show the answer options UI to the player who won the buzzer
+              playerWhoPressedId && playerWhoPressedId === currentUserId ? (
+                <AnswerOptions
+                  options={currentOptions}
+                  onSelect={submitAnswer}
+                  timeLeft={answerTimeLeft}
+                  isWaitingAck={waitingAnswerAck}
+                />
+              ) : (
+                // Other players see a waiting panel while the winner answers
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white rounded-3xl shadow-2xl p-8 text-center"
+                >
+                  <div className="text-6xl mb-4">⚡</div>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                    {playerWhoPressed || 'Un jugador'} está respondiendo...
+                  </h3>
+                  <p className="text-gray-600">Tiempo restante: {answerTimeLeft}s</p>
+                </motion.div>
+              )
             ) : (
               <BuzzerButton
                 showBuzzer={showBuzzer}
@@ -226,6 +251,7 @@ export default function GamePage() {
                 playerWhoPressed={playerWhoPressed}
                 onPress={pressBuzzer}
                 isBlocked={isBlocked}
+                isWaitingAck={waitingBuzzerAck}
               />
             )}
           </div>
@@ -240,11 +266,12 @@ export default function GamePage() {
             />
 
             {/* Chat */}
-            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden" style={{ height: '400px' }}>
+            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden w-full">
               <ChatPanel
-                roomCode={code}
                 messages={messages}
+                currentUserId={currentUserId}
                 onSendMessage={handleSendMessage}
+                isConnected={isConnected}
               />
             </div>
           </div>

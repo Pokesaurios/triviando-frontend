@@ -4,6 +4,8 @@ import toast from 'react-hot-toast';
 import { PlayersList } from './PlayersList';
 import { ChatPanel } from '../chat/ChatPanel';
 import { getSocket } from '../../lib/socket';
+import { SOCKET_EVENTS } from '../../config/constants';
+import { ChatMessage } from '../../types/chat.types';
 
 interface Room {
   code: string;
@@ -13,19 +15,10 @@ interface Room {
   players: Array<{ userId: string; name: string }>;
 }
 
-interface Message {
-  id: string;
-  userId: string;
-  userName: string;
-  text: string;
-  timestamp: Date;
-}
-
 interface WaitingRoomContainerProps {
   room: Room;
   currentUserId: string;
-  currentUserName: string;
-  messages: Message[];
+  messages: ChatMessage[];
   onSendMessage: (message: string) => void;
   isChatConnected: boolean;
 }
@@ -33,7 +26,6 @@ interface WaitingRoomContainerProps {
 export const WaitingRoomContainer: React.FC<WaitingRoomContainerProps> = ({
   room,
   currentUserId,
-  currentUserName,
   messages,
   onSendMessage,
   isChatConnected
@@ -53,9 +45,28 @@ export const WaitingRoomContainer: React.FC<WaitingRoomContainerProps> = ({
     
     const socket = getSocket();
     if (socket && socket.connected) {
-      socket.emit('game:start', { code: room.code });
-      toast.success('¡Iniciando partida!');
-      navigate(`/game/${room.code}`);
+      // Emit and wait for ack from server to ensure game actually started
+      let handled = false;
+      try {
+        socket.emit(SOCKET_EVENTS.GAME_START, { code: room.code }, (ack?: { ok?: boolean; message?: string }) => {
+          handled = true;
+          if (ack?.ok) {
+            toast.success('¡Iniciando partida!');
+            navigate(`/game/${room.code}`);
+          } else {
+            toast.error(ack?.message || 'Error al iniciar la partida');
+          }
+        });
+        // Fallback: if server doesn't call ack within 2s, show a loading toast and wait for server 'game:started' event
+        setTimeout(() => {
+          if (!handled) {
+            toast('Iniciando partida...', { duration: 3000 });
+          }
+        }, 2000);
+      } catch (err) {
+        console.error('[handleStartGame] emit error', err);
+        toast.error('Error al solicitar inicio de partida');
+      }
     } else {
       toast.error('No hay conexión con el servidor');
     }
@@ -64,8 +75,35 @@ export const WaitingRoomContainer: React.FC<WaitingRoomContainerProps> = ({
   const handleLeaveRoom = useCallback(() => {
     const socket = getSocket();
     if (socket && socket.connected) {
-      socket.emit('room:leave', { code: room.code });
+      let completed = false;
+      try {
+        socket.emit('room:leave', { code: room.code }, (ack?: { ok?: boolean; message?: string }) => {
+          completed = true;
+          // If backend handled it, we may optionally show a message
+          if (ack?.ok) {
+            toast.success('Has abandonado la sala');
+          } else if (ack?.message) {
+            toast(ack.message, { duration: 3000 });
+          }
+          // disconnect socket to avoid stale room association
+          try { socket.disconnect(); } catch { /* ignore */ }
+          navigate('/dashboard');
+        });
+      } catch (err) {
+        console.warn('[handleLeaveRoom] emit error', err);
+      }
+
+      // Fallback: if no ack after 1s, disconnect and navigate anyway
+      setTimeout(() => {
+        if (!completed) {
+          try { socket.disconnect(); } catch { /* ignore */ }
+          navigate('/dashboard');
+        }
+      }, 1000);
+      return;
     }
+
+    // If socket not connected, just navigate home
     navigate('/dashboard');
   }, [navigate, room.code]);
 

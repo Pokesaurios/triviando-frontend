@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Menu } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 
 interface MenuButtonProps {
   onLogout: () => void;
@@ -14,7 +14,7 @@ export const MenuButton: React.FC<MenuButtonProps> = ({ onLogout }) => {
       onClick={onLogout}
       title="Cerrar sesión"
     >
-      <Menu size={32} />
+      <LogOut size={32} />
     </motion.button>
   );
 };

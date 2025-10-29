@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AnimatedBackground } from '../components/ui/AnimatedBackground';
 import { LogoHeader } from '../components/ui/LogoHeader';
 import { MenuButton } from '../components/ui/MenuButton';
-import { TrendingUp, Trophy, Target, Award, BarChart3, Calendar, Brain, Zap } from 'lucide-react';
+import { TrendingUp, Trophy, Target, Award, BarChart3, Calendar, Brain, Zap, ArrowLeft } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getGameResults } from '../lib/services/statsServices';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
@@ -112,7 +112,7 @@ export default function StatsPage() {
               whileTap={{ scale: 0.95 }}
               className="bg-white/20 backdrop-blur-sm text-white p-3 rounded-xl hover:bg-white/30 transition-all shadow-lg"
             >
-              ←
+              <ArrowLeft size={32} />
             </motion.button>
 
             <LogoHeader variant="dashboard" />
