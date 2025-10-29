@@ -66,6 +66,23 @@ export default function WaitingRoomPage() {
       navigate('/dashboard');
     }
   }, [isError, error, navigate]);
+
+  useEffect(() => {
+  const socket = getSocket();
+  if (!socket) return;
+
+  const handleGameStarted = (data: any) => {
+    console.log('Game started, redirecting to game...', data);
+    toast.success('¡El juego ha comenzado!');
+    navigate(`/game/${code}`);
+  };
+
+  socket.on('game:started', handleGameStarted);
+
+  return () => {
+    socket.off('game:started', handleGameStarted);
+  };
+}, [code, navigate]);
   
   if (isLoading) {
     return (

@@ -9,6 +9,7 @@ import DashboardPage from './DashboardPage';
 import CreateTriviaPage from './CreateTriviaPage';
 import WaitingRoomPage from './WaitingRoomPage';
 import JoinRoomPage from './JoinRoomPage';
+import GamePage from './GamePage';
 
 
 // Componente para proteger rutas
@@ -94,6 +95,14 @@ function App() {
             element={
               <PrivateRoute>
                 <JoinRoomPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/game/:code"
+            element={
+              <PrivateRoute>
+                <GamePage />
               </PrivateRoute>
             }
           />

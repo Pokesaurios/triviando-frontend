@@ -23,6 +23,21 @@ export const ROOM_KEYS = {
   byCode: (code: string) => ['rooms', code] as const,
 };
 
+// Función helper para normalizar jugadores
+const normalizePlayer = (p: any) => {
+  // Intentar obtener el nombre de múltiples fuentes posibles
+  const playerName = p.name || p.userName || p.username || p.user || 'Usuario Desconocido';
+  const playerId = p.userId || p.id || p._id;
+  
+  console.log('🔍 Normalizando jugador:', { original: p, normalized: { userId: playerId, name: playerName } });
+  
+  return {
+    userId: playerId,
+    name: playerName,
+    joinedAt: p.joinedAt || new Date()
+  };
+};
+
 export const useRoomSocket = (
   roomCode: string | undefined,
   options?: UseRoomSocketOptions
@@ -64,16 +79,17 @@ export const useRoomSocket = (
         
         if (response?.ok) {
           console.log('✅ Unido a la sala exitosamente');
-          console.log('📦 Datos de la sala recibidos:', response.room);
+          console.log('📦 Datos completos de la sala recibidos:', JSON.stringify(response.room, null, 2));
           joinedRef.current = true;
           setJoined(true);
           
+          // Cargar historial de chat
           if (response.room?.chatHistory && onNewMessage) {
             response.room.chatHistory.forEach((msg: any) => {
               const chatMessage: ChatMessage = {
                 id: `${msg.userId}-${msg.timestamp}`,
                 player_id: msg.userId,
-                username: msg.user,
+                username: msg.user || msg.userName || msg.username || 'Usuario',
                 message: msg.message,
                 timestamp: msg.timestamp,
                 roomCode: roomCode
@@ -82,16 +98,13 @@ export const useRoomSocket = (
             });
           }
           
+          // Actualizar datos de la sala
           if (response.room) {
-            const normalizedPlayers = response.room.players.map((p: any) => {
-              return {
-                userId: p.userId || p._id,
-                name: p.name || 'Usuario Desconocido',
-                joinedAt: p.joinedAt || new Date()
-              };
-            });
+            console.log('👥 Jugadores originales del backend:', response.room.players);
             
-            console.log('👥 Jugadores normalizados:', normalizedPlayers);
+            const normalizedPlayers = response.room.players.map(normalizePlayer);
+            
+            console.log('✅ Jugadores normalizados:', normalizedPlayers);
             
             queryClient.setQueryData<Room>(ROOM_KEYS.byCode(roomCode), {
               code: response.room.code || roomCode,
@@ -101,6 +114,8 @@ export const useRoomSocket = (
               maxPlayers: response.room.maxPlayers || 4,
               status: response.room.status || 'waiting',
               players: normalizedPlayers,
+              createdAt: response.room.createdAt || new Date().toISOString(),
+              updatedAt: response.room.updatedAt || new Date().toISOString(),
             });
           }
         } else {
@@ -118,22 +133,17 @@ export const useRoomSocket = (
 
     // Handler para actualizaciones de sala
     const handleRoomUpdate = (data: RoomUpdateEvent) => {
-      console.log('📡 room:update received:', data);
+      console.log('📡 room:update received:', JSON.stringify(data, null, 2));
       
       queryClient.setQueryData<Room>(ROOM_KEYS.byCode(roomCode), (oldData) => {
         if (!oldData) return oldData;
         
         if (data.event === 'playerJoined' && data.players) {
+          console.log('➕ Actualizando lista de jugadores (playerJoined):', data.players);
           
-          const normalizedPlayers = data.players.map(p => {
-            const playerName = p.name || 'Usuario Desconocido';
-            
-            return {
-              userId: p.userId,
-              name: playerName,
-              joinedAt: new Date()
-            };
-          });
+          const normalizedPlayers = data.players.map(normalizePlayer);
+          
+          console.log('✅ Jugadores normalizados (playerJoined):', normalizedPlayers);
           
           return {
             ...oldData,
@@ -142,6 +152,8 @@ export const useRoomSocket = (
         }
         
         if (data.event === 'playerLeft' && data.userId) {
+          console.log(`➖ Jugador salió: ${data.userId}`);
+          
           return {
             ...oldData,
             players: oldData.players.filter((p) => p.userId !== data.userId)
@@ -154,8 +166,10 @@ export const useRoomSocket = (
       const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
       
       if (data.event === 'playerJoined' && data.player) {
+        const playerName = data.player.name || 'Usuario';
+        
         if (data.player.id !== currentUser.id) {
-          toast.success(`🎮 ${data.player.name} se unió a la sala`, {
+          toast.success(`🎮 ${playerName} se unió a la sala`, {
             duration: 3000,
             position: 'top-center',
           });
@@ -182,7 +196,7 @@ export const useRoomSocket = (
       const chatMessage: ChatMessage = {
         id: `${message.userId}-${message.timestamp}`,
         player_id: message.userId,
-        username: message.user,
+        username: message.user || message.userName || message.username || 'Usuario',
         message: message.message,
         timestamp: message.timestamp,
         roomCode: roomCode
@@ -195,7 +209,7 @@ export const useRoomSocket = (
       // Toast para mensajes de otros usuarios
       const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
       if (message.userId !== currentUser.id) {
-        toast(`${message.user}: ${message.message}`, {
+        toast(`${chatMessage.username}: ${message.message}`, {
           duration: 3000,
           position: 'bottom-right',
           icon: '💬',
