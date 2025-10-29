@@ -37,7 +37,7 @@ function App() {
   useEffect(() => {
     const token = authService.getToken();
     
-    if (token&& !socketInitialized.current) {
+    if (token && !socketInitialized.current) {
       connectSocket(token);
       socketInitialized.current = true;
     }
