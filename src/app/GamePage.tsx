@@ -1,0 +1,311 @@
+import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { useGameSocket } from '../hooks/useGameSocket';
+import { useChat } from '../hooks/useChat';
+import QuestionDisplay from '../features/game/QuestionDisplay';
+import BuzzerButton from '../features/game/BuzzerButton';
+import AnswerOptions from '../features/game/AnswerOptions';
+import GameRanking from '../features/game/GameRanking';
+import GameResult from '../features/game/GameResult';
+import { ChatPanel } from '../features/chat/ChatPanel';
+import { getSocket, connectSocket } from '../lib/socket';
+import type { ReconnectResponse } from '../types/backend.types';
+import type { BackendPlayerRaw } from '../types/backend.types';
+import { GamePlayer } from '../types/game.types';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { useRoomSocket } from '../hooks/useRoomSocket';
+
+export default function GamePage() {
+  const { code } = useParams<{ code: string }>();
+  const navigate = useNavigate();
+  const [players, setPlayers] = useState<GamePlayer[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [isReconnecting, setIsReconnecting] = useState(true);
+
+  const {
+    gameState,
+    currentQuestion,
+    currentOptions,
+    showBuzzer,
+    buzzerPressed,
+    playerWhoPressed,
+    playerWhoPressedId,
+    showAnswerOptions,
+    timeLeft,
+    answerTimeLeft,
+    totalQuestions,
+    currentQuestionNumber,
+    gameEnded,
+    winner,
+    pressBuzzer,
+    submitAnswer,
+    isBlocked,
+    waitingBuzzerAck,
+    waitingAnswerAck,
+  } = useGameSocket(code || '');
+
+  // Animated background is handled by the reusable AnimatedBackground component
+  
+
+  const { 
+    messages, 
+    addMessage, 
+    sendMessage, 
+    isConnected,
+    loadChatHistory 
+  } = useChat();
+
+  const { connected } = useRoomSocket(code || '', {
+      onNewMessage: addMessage
+    });
+
+  // Initialize socket connection and get user
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    
+    if (!token || !user.id) {
+      navigate('/login');
+      return;
+    }
+
+    // Ensure socket is connected (do this before returning)
+    const socket = getSocket();
+    if (!socket?.connected) {
+      connectSocket(token as string);
+    }
+
+    // Defer setState to the next animation frame to avoid a synchronous setState inside the effect
+    const rafId = requestAnimationFrame(() => setCurrentUserId(user.id));
+    return () => cancelAnimationFrame(rafId);
+  }, [navigate]);
+
+  // Reconnect to room and get initial state
+  useEffect(() => {
+    if (!code) {
+      navigate('/dashboard');
+      return;
+    }
+
+    const socket = getSocket();
+    if (!socket) return;
+
+    const reconnectToRoom = () => {
+      console.log('🔄 Reconnecting to room:', code);
+      
+      socket.emit('room:reconnect', { code }, (response: ReconnectResponse) => {
+        console.log('📥 Reconnect response:', response);
+
+        if (response.ok && response.room) {
+          // Validar y mapear jugadores correctamente
+          const roomPlayers: BackendPlayerRaw[] = response.room.players || [];
+          const validPlayers = roomPlayers
+            .filter((p) => p && (p.userId || p._id))
+            .map((p) => ({
+              userId: (typeof p.userId === 'string' && p.userId) || (p._id as string) || '',
+              name:
+                p.name ||
+                (typeof p.user === 'string'
+                  ? p.user
+                  : (p.user && (p.user as { name?: string }).name)) ||
+                'Jugador',
+            }));
+          
+          console.log('👥 Valid players:', validPlayers);
+          setPlayers(validPlayers);
+          
+          // If there's gameState in the response, it means game is in progress
+          if (response.room.gameState) {
+            console.log('🎮 Game state restored:', response.room.gameState);
+            // Dispatch a client-side event so hooks (useGameSocket) can initialize immediately
+            try {
+              window.dispatchEvent(new CustomEvent('triviando:gameStateInit', { detail: response.room.gameState }));
+            } catch (err) {
+              console.warn('Unable to dispatch gameStateInit event:', err);
+            }
+          }
+          
+          setIsReconnecting(false);
+        } else {
+          console.error('❌ Failed to reconnect:', response);
+          navigate('/dashboard');
+        }
+      });
+    };
+
+    // Wait for socket to be connected
+    if (socket.connected) {
+      reconnectToRoom();
+    } else {
+      socket.once('connect', reconnectToRoom);
+    }
+
+    return () => {
+      socket.off('connect', reconnectToRoom);
+    };
+  }, [code, navigate]);
+
+  // Update players from gameState
+  useEffect(() => {
+    if (gameState?.players) {
+      const raf = requestAnimationFrame(() => setPlayers(gameState.players));
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [gameState]);
+
+  // Handle chat messages
+  const handleSendMessage = (messageText: string) => {
+    if (!code || !currentUserId) return;
+    
+    sendMessage(messageText, code);
+  };
+
+  useEffect(() => {
+    if (code && connected) {
+      loadChatHistory(code);
+    }
+  }, [code, connected, loadChatHistory]);
+
+  const handleGoHome = () => {
+    navigate('/dashboard');
+  };
+
+  if (!code) {
+    return null;
+  }
+
+  // Show loading while reconnecting
+  if (isReconnecting) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
+  // Show game result screen
+  if (gameEnded && winner) {
+    return (
+      <GameResult
+        winner={winner}
+        players={players}
+        scores={gameState?.scores || {}}
+        onGoHome={handleGoHome}
+      />
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 relative overflow-hidden">
+      <div className="relative z-10 p-4 max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+          <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 text-white font-bold">
+            Pregunta {currentQuestionNumber}/{totalQuestions}
+          </div>
+        </div>
+
+        <div className="grid lg:grid-cols-4 gap-4">
+          {/* Main game area */}
+          <div className="lg:col-span-3 space-y-4">
+            {/* Question display */}
+            {currentQuestion && (
+              <QuestionDisplay
+                question={currentQuestion}
+                timeLeft={timeLeft}
+                questionNumber={currentQuestionNumber}
+                totalQuestions={totalQuestions}
+                roomCode={code}
+              />
+            )}
+
+            {/* Buzzer or answer options */}
+            {showAnswerOptions && currentOptions ? (
+              // Only show the answer options UI to the player who won the buzzer
+              playerWhoPressedId && playerWhoPressedId === currentUserId ? (
+                <AnswerOptions
+                  options={currentOptions}
+                  onSelect={submitAnswer}
+                  timeLeft={answerTimeLeft}
+                  isWaitingAck={waitingAnswerAck}
+                />
+              ) : (
+                // Other players see a waiting panel while the winner answers
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white rounded-3xl shadow-2xl p-8 text-center"
+                >
+                  <div className="text-6xl mb-4">⚡</div>
+                  <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                    {playerWhoPressed || 'Un jugador'} está respondiendo...
+                  </h3>
+                  <p className="text-gray-600">Tiempo restante: {answerTimeLeft}s</p>
+                </motion.div>
+              )
+            ) : (
+              <BuzzerButton
+                showBuzzer={showBuzzer}
+                buzzerPressed={buzzerPressed}
+                playerWhoPressed={playerWhoPressed}
+                onPress={pressBuzzer}
+                isBlocked={isBlocked}
+                isWaitingAck={waitingBuzzerAck}
+              />
+            )}
+          </div>
+
+          {/* Sidebar */}
+          <div className="lg:col-span-1 space-y-4">
+            {/* Ranking */}
+            <GameRanking
+              players={players}
+              scores={gameState?.scores || {}}
+              currentUserId={currentUserId}
+            />
+
+            {/* Chat */}
+            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden w-full">
+              <ChatPanel
+                messages={messages}
+                currentUserId={currentUserId}
+                onSendMessage={handleSendMessage}
+                isConnected={isConnected}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Decorative elements */}
+      <motion.div
+        className="fixed top-1/2 left-8 hidden xl:block pointer-events-none"
+        animate={{
+          rotate: [0, 10, -10, 0],
+        }}
+        transition={{
+          duration: 3,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+      >
+        <div className="text-7xl opacity-30">❓</div>
+      </motion.div>
+
+      <motion.div
+        className="fixed bottom-8 left-8 hidden xl:block pointer-events-none"
+        animate={{
+          y: [0, -15, 0],
+        }}
+        transition={{
+          duration: 2,
+          repeat: Infinity,
+          ease: 'easeInOut',
+        }}
+      >
+        <div className="text-6xl opacity-30">💡</div>
+      </motion.div>
+    </div>
+  );
+}
