@@ -19,6 +19,7 @@ import { useRoomSocket } from '../hooks/useRoomSocket';
 export default function GamePage() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
+  
   const [players, setPlayers] = useState<GamePlayer[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string>('');
   const [isReconnecting, setIsReconnecting] = useState(true);
@@ -45,9 +46,6 @@ export default function GamePage() {
     waitingAnswerAck,
   } = useGameSocket(code || '');
 
-  // Animated background is handled by the reusable AnimatedBackground component
-  
-
   const { 
     messages, 
     addMessage, 
@@ -57,8 +55,8 @@ export default function GamePage() {
   } = useChat();
 
   const { connected } = useRoomSocket(code || '', {
-      onNewMessage: addMessage
-    });
+    onNewMessage: addMessage
+  });
 
   // Initialize socket connection and get user
   useEffect(() => {
@@ -70,13 +68,11 @@ export default function GamePage() {
       return;
     }
 
-    // Ensure socket is connected (do this before returning)
     const socket = getSocket();
     if (!socket?.connected) {
       connectSocket(token as string);
     }
 
-    // Defer setState to the next animation frame to avoid a synchronous setState inside the effect
     const rafId = requestAnimationFrame(() => setCurrentUserId(user.id));
     return () => cancelAnimationFrame(rafId);
   }, [navigate]);
@@ -96,9 +92,7 @@ export default function GamePage() {
       
       socket.emit('room:reconnect', { code }, (response: ReconnectResponse) => {
         console.log('📥 Reconnect response:', response);
-
         if (response.ok && response.room) {
-          // Validar y mapear jugadores correctamente
           const roomPlayers: BackendPlayerRaw[] = response.room.players || [];
           const validPlayers = roomPlayers
             .filter((p) => p && (p.userId || p._id))
@@ -115,12 +109,12 @@ export default function GamePage() {
           console.log('👥 Valid players:', validPlayers);
           setPlayers(validPlayers);
           
-          // If there's gameState in the response, it means game is in progress
           if (response.room.gameState) {
             console.log('🎮 Game state restored:', response.room.gameState);
-            // Dispatch a client-side event so hooks (useGameSocket) can initialize immediately
             try {
-              window.dispatchEvent(new CustomEvent('triviando:gameStateInit', { detail: response.room.gameState }));
+              window.dispatchEvent(new CustomEvent('triviando:gameStateInit', { 
+                detail: response.room.gameState 
+              }));
             } catch (err) {
               console.warn('Unable to dispatch gameStateInit event:', err);
             }
@@ -134,7 +128,6 @@ export default function GamePage() {
       });
     };
 
-    // Wait for socket to be connected
     if (socket.connected) {
       reconnectToRoom();
     } else {
@@ -146,18 +139,25 @@ export default function GamePage() {
     };
   }, [code, navigate]);
 
-  // Update players from gameState
+  // ⚠️ CRÍTICO: Actualizar players desde gameState cuando cambien
   useEffect(() => {
-    if (gameState?.players) {
-      const raf = requestAnimationFrame(() => setPlayers(gameState.players));
-      return () => cancelAnimationFrame(raf);
+    if (gameState?.players && gameState.players.length > 0) {
+      console.log('🔄 Actualizando players desde gameState:', gameState.players);
+      const rafId = requestAnimationFrame(() => setPlayers(gameState.players));
+      return () => cancelAnimationFrame(rafId);
     }
-  }, [gameState]);
+  }, [gameState?.players]);
+
+  // ⚠️ CRÍTICO: Log de scores cada vez que cambien
+  useEffect(() => {
+    if (gameState?.scores) {
+      console.log('📊 Scores actualizados en GamePage:', gameState.scores);
+    }
+  }, [gameState?.scores]);
 
   // Handle chat messages
   const handleSendMessage = (messageText: string) => {
     if (!code || !currentUserId) return;
-    
     sendMessage(messageText, code);
   };
 
@@ -175,7 +175,6 @@ export default function GamePage() {
     return null;
   }
 
-  // Show loading while reconnecting
   if (isReconnecting) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center">
@@ -184,8 +183,11 @@ export default function GamePage() {
     );
   }
 
-  // Show game result screen
+  // ⚠️ CRÍTICO: Pasar scores directamente desde gameState
   if (gameEnded && winner) {
+    console.log('🏁 Renderizando GameResult con scores:', gameState?.scores);
+    console.log('🏁 Renderizando GameResult con players:', players);
+    
     return (
       <GameResult
         winner={winner}
@@ -222,7 +224,6 @@ export default function GamePage() {
 
             {/* Buzzer or answer options */}
             {showAnswerOptions && currentOptions ? (
-              // Only show the answer options UI to the player who won the buzzer
               playerWhoPressedId && playerWhoPressedId === currentUserId ? (
                 <AnswerOptions
                   options={currentOptions}
@@ -231,7 +232,6 @@ export default function GamePage() {
                   isWaitingAck={waitingAnswerAck}
                 />
               ) : (
-                // Other players see a waiting panel while the winner answers
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -258,7 +258,7 @@ export default function GamePage() {
 
           {/* Sidebar */}
           <div className="lg:col-span-1 space-y-4">
-            {/* Ranking */}
+            {/* ⚠️ CRÍTICO: Pasar scores actualizados desde gameState */}
             <GameRanking
               players={players}
               scores={gameState?.scores || {}}
