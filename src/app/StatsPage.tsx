@@ -197,24 +197,6 @@ export default function StatsPage() {
 }
 
 /* ─── COMPONENTES AUXILIARES ────────────────────────────── */
-function StatBar({ label, value, total, color }: any) {
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-gray-700 font-semibold">{label}</span>
-        <span className={`text-2xl font-bold ${color.includes('green') ? 'text-green-600' : 'text-red-600'}`}>{value}</span>
-      </div>
-      <div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${(value / total) * 100}%` }}
-          transition={{ duration: 1 }}
-          className={`h-full bg-gradient-to-r ${color} rounded-full shadow-lg`}
-        />
-      </div>
-    </div>
-  );
-}
 
 function TopicsBar({ index, topic, count, max }: any) {
   return (
