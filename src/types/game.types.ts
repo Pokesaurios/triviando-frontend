@@ -1,14 +1,6 @@
 export interface GamePlayer {
   userId: string;
   name: string;
-  score?: number;
-}
-
-export interface GameQuestion {
-  question: string;
-  options: string[];
-  correctAnswer: string;
-  difficulty?: string;
 }
 
 export interface GameState {
@@ -16,10 +8,9 @@ export interface GameState {
   currentQuestionIndex: number;
   scores: Record<string, number>;
   players: GamePlayer[];
-  status: 'waiting' | 'reading' | 'open' | 'buzzer-open' | 'answering' | 'result' | 'finished';
+  status: 'reading' | 'open' | 'answering' | 'result' | 'finished';
   roundSequence: number;
   blocked: Record<string, boolean>;
-  // Optional timing fields persisted by server for synchronization
   questionReadEndsAt?: number;
   answerWindowEndsAt?: number;
   tieBreakerPlayed?: boolean;
@@ -51,12 +42,12 @@ export interface RoundAnswerRequestEvent {
 
 export interface RoundResultEvent {
   roundSequence: number;
-  playerId?: string;
-  correct?: boolean | null;
+  playerId?: string | null;
+  resolvedBy?: string | null;
+  correct: boolean | null;
   message?: string;
   correctAnswer?: string;
-  scores?: Record<string, number>;
-  resolvedBy?: string | null;
+  scores: Record<string, number>;
 }
 
 export interface GameEndedEvent {

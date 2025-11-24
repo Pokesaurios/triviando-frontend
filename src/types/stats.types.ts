@@ -8,12 +8,12 @@ export interface GameResultType {
   scores: Record<string, number>;
   players: {
     userId: string;
-    name: string;
+    userName: string;
     score: number;
   }[];
   winner?: {
     userId: string;
-    name: string;
+    userName: string;
     score: number;
   };
 }

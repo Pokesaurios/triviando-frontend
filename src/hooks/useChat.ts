@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { getSocket } from '../lib/socket';
 import { ChatMessage } from '../types/chat.types';
 import { SOCKET_CONFIG, SOCKET_EVENTS } from '../config/constants';
+import { getAvatarColor } from '../utils/avatar';
 
 interface UseChatReturn {
   messages: ChatMessage[];
@@ -16,43 +17,61 @@ export const useChat = (): UseChatReturn => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
 
+  const transformMessage = useCallback((msg: {
+    userId: string;
+    user: string;
+    message: string;
+    timestamp: string | Date;
+  }): ChatMessage => {
+    return {
+      id: `${msg.userId}-${new Date(msg.timestamp).getTime()}`,
+      userId: msg.userId,
+      user: msg.user,
+      message: msg.message,
+      timestamp: typeof msg.timestamp === 'string' ? msg.timestamp : msg.timestamp.toISOString(),
+      avatarColor: getAvatarColor(msg.userId),
+    };
+  }, []);
+
   useEffect(() => {
     const socket = getSocket();
     
-    if (socket) {
-      setIsConnected(socket.connected);
+    if (!socket) return;
 
-      const handleConnect = () => {
-        console.log('✅ Chat: Socket conectado');
-        setIsConnected(true);
-      };
+    setIsConnected(socket.connected);
 
-      const handleDisconnect = () => {
-        console.log('❌ Chat: Socket desconectado');
-        setIsConnected(false);
-      };
+    const handleConnect = () => {
+      console.log('✅ Chat: Socket conectado');
+      setIsConnected(true);
+    };
 
-      socket.on(SOCKET_CONFIG.EVENTS.CONNECT, handleConnect);
-      socket.on(SOCKET_CONFIG.EVENTS.DISCONNECT, handleDisconnect);
+    const handleDisconnect = () => {
+      console.log('❌ Chat: Socket desconectado');
+      setIsConnected(false);
+    };
 
-      return () => {
-        socket.off(SOCKET_CONFIG.EVENTS.CONNECT, handleConnect);
-        socket.off(SOCKET_CONFIG.EVENTS.DISCONNECT, handleDisconnect);
-      };
-    }
-  }, []);
+    // Escuchar nuevos mensajes de chat
+    const handleNewMessage = (data: {
+      userId: string;
+      user: string;
+      message: string;
+      timestamp: string | Date;
+    }) => {
+      console.log('📨 Nuevo mensaje recibido:', data);
+      const transformedMessage = transformMessage(data);
+      addMessage(transformedMessage);
+    };
 
-  interface IncomingChatMsg {
-    id?: string;
-    userId?: string;
-    user?: string;
-    userName?: string;
-    username?: string;
-    message?: string;
-    timestamp?: string;
-    created_at?: string;
-    avatar_color?: string;
-  }
+    socket.on(SOCKET_CONFIG.EVENTS.CONNECT, handleConnect);
+    socket.on(SOCKET_CONFIG.EVENTS.DISCONNECT, handleDisconnect);
+    socket.on(SOCKET_EVENTS.ROOM_CHAT_NEW, handleNewMessage);
+
+    return () => {
+      socket.off(SOCKET_CONFIG.EVENTS.CONNECT, handleConnect);
+      socket.off(SOCKET_CONFIG.EVENTS.DISCONNECT, handleDisconnect);
+      socket.off(SOCKET_EVENTS.ROOM_CHAT_NEW, handleNewMessage);
+    };
+  }, [transformMessage]);
 
   const addMessage = useCallback((message: ChatMessage) => {
     setMessages(prev => {
@@ -76,7 +95,6 @@ export const useChat = (): UseChatReturn => {
       return;
     }
 
-    // Backend espera: { code, message }
     const messagePayload = {
       code: roomCode,
       message: messageText,
@@ -84,14 +102,12 @@ export const useChat = (): UseChatReturn => {
 
     console.log('📤 Enviando mensaje:', messagePayload);
 
-    // Emitir mensaje al servidor (backend usa ROOM_CHAT)
     socket.emit(SOCKET_EVENTS.ROOM_CHAT, messagePayload, (response?: { 
       ok: boolean; 
       message?: string;
     }) => {
       if (response?.ok) {
         console.log('✅ Mensaje enviado exitosamente');
-        // El mensaje llegará via evento 'room:chat:new' del servidor
       } else {
         console.error('❌ Error al enviar mensaje:', response?.message || 'Sin respuesta del servidor');
       }
@@ -106,34 +122,28 @@ export const useChat = (): UseChatReturn => {
       return;
     }
 
-    // Solicitar reconexión para obtener historial
     socket.emit(SOCKET_EVENTS.ROOM_RECONNECT, { code: roomCode }, (response?: {
       ok: boolean;
-      room?: { chatHistory: IncomingChatMsg[] };
+      room?: { 
+        chatHistory: Array<{
+          userId: string;
+          user: string;
+          message: string;
+          timestamp: string | Date;
+        }>;
+      };
       message?: string;
     }) => {
       if (response?.ok && response.room?.chatHistory) {
-        console.log('📜 Cargando historial de chat:', response.room.chatHistory);
-
-        // Transformar mensajes del backend al formato del frontend (ChatMessage)
-        const transformedMessages: ChatMessage[] = response.room.chatHistory.map((msg) => {
-          const created_at = msg.created_at || msg.timestamp || new Date().toISOString();
-          return {
-            id: msg.id || `${msg.userId}-${created_at}`,
-            player_id: msg.userId || '',
-            username: msg.user || msg.userName || msg.username || 'Usuario',
-            message: msg.message || '',
-            created_at,
-            avatar_color: msg.avatar_color || ''
-          };
-        });
-
+        console.log('📜 Cargando historial de chat:', response.room.chatHistory.length, 'mensajes');
+        
+        const transformedMessages = response.room.chatHistory.map(transformMessage);
         setMessages(transformedMessages);
       } else {
         console.warn('No se pudo cargar el historial:', response?.message);
       }
     });
-  }, []);
+  }, [transformMessage]);
 
   return {
     messages,

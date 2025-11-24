@@ -6,14 +6,7 @@ import { ChatPanel } from '../chat/ChatPanel';
 import { getSocket } from '../../lib/socket';
 import { SOCKET_EVENTS } from '../../config/constants';
 import { ChatMessage } from '../../types/chat.types';
-
-interface Room {
-  code: string;
-  hostId: string;
-  maxPlayers: number;
-  status: string;
-  players: Array<{ userId: string; name: string }>;
-}
+import { Room } from '../../types/room.types';
 
 interface WaitingRoomContainerProps {
   room: Room;
@@ -45,7 +38,6 @@ export const WaitingRoomContainer: React.FC<WaitingRoomContainerProps> = ({
     
     const socket = getSocket();
     if (socket && socket.connected) {
-      // Emit and wait for ack from server to ensure game actually started
       let handled = false;
       try {
         socket.emit(SOCKET_EVENTS.GAME_START, { code: room.code }, (ack?: { ok?: boolean; message?: string }) => {
@@ -57,7 +49,6 @@ export const WaitingRoomContainer: React.FC<WaitingRoomContainerProps> = ({
             toast.error(ack?.message || 'Error al iniciar la partida');
           }
         });
-        // Fallback: if server doesn't call ack within 2s, show a loading toast and wait for server 'game:started' event
         setTimeout(() => {
           if (!handled) {
             toast('Iniciando partida...', { duration: 3000 });
@@ -79,13 +70,11 @@ export const WaitingRoomContainer: React.FC<WaitingRoomContainerProps> = ({
       try {
         socket.emit('room:leave', { code: room.code }, (ack?: { ok?: boolean; message?: string }) => {
           completed = true;
-          // If backend handled it, we may optionally show a message
           if (ack?.ok) {
             toast.success('Has abandonado la sala');
           } else if (ack?.message) {
             toast(ack.message, { duration: 3000 });
           }
-          // disconnect socket to avoid stale room association
           try { socket.disconnect(); } catch { /* ignore */ }
           navigate('/dashboard');
         });
@@ -93,7 +82,6 @@ export const WaitingRoomContainer: React.FC<WaitingRoomContainerProps> = ({
         console.warn('[handleLeaveRoom] emit error', err);
       }
 
-      // Fallback: if no ack after 1s, disconnect and navigate anyway
       setTimeout(() => {
         if (!completed) {
           try { socket.disconnect(); } catch { /* ignore */ }
@@ -103,7 +91,6 @@ export const WaitingRoomContainer: React.FC<WaitingRoomContainerProps> = ({
       return;
     }
 
-    // If socket not connected, just navigate home
     navigate('/dashboard');
   }, [navigate, room.code]);
 

@@ -37,7 +37,7 @@ export default function JoinRoomPage() {
 
   // Manejar redirección cuando se une exitosamente
   useEffect(() => {
-    if (joinRoomMutation.isSuccess && joinRoomMutation.data) {
+    if (joinRoomMutation.isSuccess && joinRoomMutation.data?.room) {
       toaster.success('¡Te has unido a la sala! 🎉');
       navigate(`/room/${joinRoomMutation.data.room.code}`);
     }

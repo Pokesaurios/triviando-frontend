@@ -23,11 +23,11 @@ export const ROUTES = {
 
 // Nueva constante para la URL base de la API
 export const API_CONFIG = {
-  BASE_URL: 'https://triviando-backend-g5fph6h2fybhd7cj.canadacentral-01.azurewebsites.net/api/v1',
+  BASE_URL: 'http://localhost:4000/api/v1',
 };
 // Configuración del Socket
 export const SOCKET_CONFIG = {
-  URL: import.meta.env.VITE_SOCKET_URL || 'https://triviando-backend-g5fph6h2fybhd7cj.canadacentral-01.azurewebsites.net/',
+  URL: import.meta.env.VITE_SOCKET_URL || 'http://localhost:4000/',
   OPTIONS: {
     autoConnect: false,
     withCredentials: true,

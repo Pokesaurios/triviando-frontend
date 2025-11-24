@@ -19,8 +19,6 @@ export interface AuthFormState {
   isLoading: boolean;
   message: AuthMessage | null;
 }
-
-// Nueva interfaz para la respuesta del usuario
 export interface User {
   id: string;
   name: string;

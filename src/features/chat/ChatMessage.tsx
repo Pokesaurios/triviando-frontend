@@ -9,7 +9,7 @@ interface ChatMessageProps {
 }
 
 export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isCurrentUser }) => {
-  const color = message.avatar_color || getAvatarColor(message.player_id || message.username || 'default');
+  const color = message.avatarColor || getAvatarColor(message.userId || message.user || 'default');
 
   return (
     <motion.div
@@ -19,13 +19,13 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isCurrentUser
       className={`flex gap-3 ${isCurrentUser ? 'flex-row-reverse' : ''}`}
     >
       <PlayerAvatar 
-        name={message.username || 'Usuario'}
+        name={message.user || 'Usuario'}
         color={color}
         size="sm"
       />
       
       <div className={`flex-1 ${isCurrentUser ? 'text-right' : ''}`}>
-        <p className="text-xs text-gray-500 mb-1">{message.username || 'Usuario'}</p>
+        <p className="text-xs text-gray-500 mb-1">{message.user || 'Usuario'}</p>
         <motion.div
           whileHover={{ scale: 1.02 }}
           className={`inline-block max-w-[80%] p-3 rounded-2xl shadow-md ${

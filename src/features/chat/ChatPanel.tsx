@@ -44,7 +44,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
               <ChatMessageComponent
                 key={msg.id}
                 message={msg}
-                isCurrentUser={msg.player_id === currentUserId}
+                isCurrentUser={msg.userId === currentUserId}
               />
             ))
           ) : (

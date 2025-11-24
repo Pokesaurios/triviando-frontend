@@ -30,8 +30,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({
           <InputField
             label="Nombre de Usuario"
             type="text"
-            value={formState.username}
-            onChange={(value) => onFieldChange('username', value)}
+            value={formState.userName}
+            onChange={(value) => onFieldChange('userName', value)}
             placeholder="TriviaChampion"
             icon={User}
             required={!isLogin}

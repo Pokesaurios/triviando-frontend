@@ -3,13 +3,7 @@ import { Users } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { PlayerItem } from './PlayerItem';
 import { getAvatarColor } from '../../utils/avatar';
-
-interface Player {
-  userId: string;
-  name: string;
-  joinedAt?: Date;
-}
-
+import { Player } from '../../types/room.types';
 interface PlayersListProps {
   players: Player[];
   maxPlayers: number;

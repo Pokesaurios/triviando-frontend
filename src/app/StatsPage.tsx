@@ -34,7 +34,7 @@ export default function StatsPage() {
   });
 
   const userGames = gameResults?.filter(game => 
-    game.players.some(player => player.name === username)
+    game.players.some(player => player.userName === username)
   );
 
   const stats: PlayerStats = userGames?.length ? {
@@ -270,7 +270,7 @@ function RecentGames({ games }: { games: GameResultType[] }) {
                   {game.winner && (
                     <div className="text-center">
                       <p className="text-sm text-gray-600 font-semibold">Ganador</p>
-                      <p className="text-xl font-bold text-green-600">{game.winner.name}</p>
+                      <p className="text-xl font-bold text-green-600">{game.winner.userName}</p>
                     </div>
                   )}
                   <div className="flex items-center gap-2">

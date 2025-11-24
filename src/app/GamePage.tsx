@@ -10,7 +10,7 @@ import GameRanking from '../features/game/GameRanking';
 import GameResult from '../features/game/GameResult';
 import { ChatPanel } from '../features/chat/ChatPanel';
 import { getSocket, connectSocket } from '../lib/socket';
-import type { ReconnectResponse } from '../types/backend.types';
+import type { ReconnectResponse } from '../types/room.types';
 import type { BackendPlayerRaw } from '../types/backend.types';
 import { GamePlayer } from '../types/game.types';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';

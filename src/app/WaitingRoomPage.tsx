@@ -30,7 +30,6 @@ export default function WaitingRoomPage() {
     onNewMessage: addMessage
   });
   
-
   const { data: room, isLoading, isError, error } = useRoom(
     code || '', 
     !!code,
@@ -67,6 +66,29 @@ export default function WaitingRoomPage() {
       navigate('/dashboard');
     }
   }, [isError, error, navigate]);
+
+  // Escuchar evento de nuevo jugador uniéndose
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+
+    const handleRoomUpdate = (data: any) => {
+      // Solo mostrar notificación si un jugador se unió y no es el usuario actual
+      if (data.event === 'playerJoined' && data.player) {
+        console.log(`${data.player.name} se unió a la sala 🎉`);
+        toast.success(`${data.player.name} se unió a la sala 🎉`, {
+          duration: 3000,
+          position: 'top-center',
+        });
+      }
+    };
+
+    socket.on(SOCKET_EVENTS.ROOM_UPDATE, handleRoomUpdate);
+
+    return () => {
+      socket.off(SOCKET_EVENTS.ROOM_UPDATE, handleRoomUpdate);
+    };
+  }, [currentUser.id]);
 
   useEffect(() => {
     const socket = getSocket();
