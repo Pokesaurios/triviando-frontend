@@ -27,7 +27,7 @@ export const API_CONFIG = {
 };
 // Configuración del Socket
 export const SOCKET_CONFIG = {
-  URL: import.meta.env.VITE_SOCKET_URL || 'http://localhost:4000/',
+  URL: import.meta.env.VITE_SOCKET_URL,
   OPTIONS: {
     autoConnect: false,
     withCredentials: true,
