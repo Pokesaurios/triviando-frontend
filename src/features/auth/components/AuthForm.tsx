@@ -78,7 +78,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         type="submit"
         variant="primary"
         disabled={isLoading}
-        fullWidth
+        className="w-full"
       >
         {isLoading ? (
           <LoadingSpinner />

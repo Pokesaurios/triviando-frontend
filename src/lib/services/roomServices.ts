@@ -1,3 +1,5 @@
+// noinspection GrazieInspection
+
 import { apiClient } from '../api/apiClient';
 import { API_ENDPOINTS } from '../../config/endpoints';
 import type {
@@ -7,6 +9,8 @@ import type {
   JoinRoomResponse,
   GetRoomResponse,
 } from '../../types/room.types';
+import { BackendRoomRaw } from '../../types/backend.types';
+import { normalizeRoom } from '../api/normalizers';
 
 export const roomServices = {
   createRoom: async (data: CreateRoomRequest) => {
@@ -20,6 +24,12 @@ export const roomServices = {
       throw new Error(response.error || 'Error al crear la sala');
     }
 
+    // normalizar la propiedad `room` si viene en formato crudo
+    const rawRoom = (response.data && (response.data as any).room) as BackendRoomRaw | undefined;
+    if (rawRoom) {
+      const normalized = normalizeRoom(rawRoom);
+      return { ...response.data!, room: normalized } as any;
+    }
     return response.data!;
   },
 
@@ -34,6 +44,11 @@ export const roomServices = {
       throw new Error(response.error || 'Error al unirse a la sala');
     }
 
+    const rawRoom = (response.data && (response.data as any).room) as BackendRoomRaw | undefined;
+    if (rawRoom) {
+      const normalized = normalizeRoom(rawRoom);
+      return { ...response.data!, room: normalized } as any;
+    }
     return response.data!;
   },
 
@@ -47,6 +62,12 @@ export const roomServices = {
       throw new Error(response.error || 'Error al obtener la sala');
     }
 
+    const roomRaw = response.data!.room as any as BackendRoomRaw;
+    if (roomRaw) {
+      // Attempt to normalize; if normalization fails, fall back to raw room object
+      /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
+      try { return normalizeRoom(roomRaw); } catch (_e) { /* fallback abajo */ }
+    }
     return response.data!.room;
   },
 };

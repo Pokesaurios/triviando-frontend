@@ -5,6 +5,7 @@ import { AuthForm } from './AuthForm';
 import { useAuthMode } from '../../hooks/useAuthMode';
 import { useAuthForm } from '../../hooks/useAuthForm';
 import { hoverScale } from '../../config/animations';
+import React from "react";
 
 export const AuthContainer: React.FC = () => {
   const { isLogin, switchToLogin, switchToRegister } = useAuthMode();

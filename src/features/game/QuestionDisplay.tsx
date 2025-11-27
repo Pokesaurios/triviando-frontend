@@ -5,7 +5,6 @@ interface QuestionDisplayProps {
   question: string;
   timeLeft: number;
   questionNumber: number;
-  totalQuestions: number;
   roomCode: string;
 }
 
@@ -13,7 +12,6 @@ export default function QuestionDisplay({
   question,
   timeLeft,
   questionNumber,
-  totalQuestions,
   roomCode,
 }: QuestionDisplayProps) {
   const getTimerColor = () => {
@@ -37,7 +35,7 @@ export default function QuestionDisplay({
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <p className="text-white text-sm font-semibold">
-              Sala: {roomCode} | Pregunta {questionNumber}/{totalQuestions}
+              Sala: {roomCode} | Pregunta {questionNumber}
             </p>
           </div>
           <div className="flex items-center gap-2">

@@ -13,7 +13,7 @@ export const AuthModeToggle: React.FC<AuthModeToggleProps> = ({ isLogin, onToggl
         variant="tab"
         isActive={isLogin}
         onClick={() => isLogin || onToggle()}
-        fullWidth
+        className="flex-1"
       >
         Iniciar Sesión
       </Button>
@@ -21,7 +21,7 @@ export const AuthModeToggle: React.FC<AuthModeToggleProps> = ({ isLogin, onToggl
         variant="tab"
         isActive={!isLogin}
         onClick={() => !isLogin || onToggle()}
-        fullWidth
+        className="flex-1"
       >
         Registrarse
       </Button>

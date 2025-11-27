@@ -1,4 +1,6 @@
 // Tipos para el middleware
+// noinspection GrazieInspection
+
 type MiddlewareFunction = (
   request: RequestInfo | URL,
   init?: RequestInit
@@ -21,32 +23,7 @@ class MiddlewareManager {
   }
 
   // Ejecutar todos los middlewares de request
-  async executeRequestMiddlewares(
-    request: RequestInfo | URL,
-    init: RequestInit = {}
-  ): Promise<RequestInit> {
-    let modifiedInit = { ...init };
-
-    for (const middleware of this.requestMiddlewares) {
-      const result = await middleware(request, modifiedInit);
-      if (result) {
-        modifiedInit = { ...modifiedInit, ...result };
-      }
-    }
-
-    return modifiedInit;
-  }
-
-  // Ejecutar todos los middlewares de response
-  async executeResponseMiddlewares(response: Response): Promise<Response> {
-    let modifiedResponse = response;
-
-    for (const middleware of this.responseMiddlewares) {
-      modifiedResponse = await middleware(modifiedResponse);
-    }
-
-    return modifiedResponse;
-  }
+// Ejecutar todos los middlewares de response
 }
 
 // Instancia única del gestor de middleware
@@ -66,20 +43,6 @@ export const responseLoggingMiddleware: ResponseMiddleware = async (response) =>
 };
 
 // Middleware de autenticación automática
-export const authMiddleware: MiddlewareFunction = (request, init) => {
-  const token = localStorage.getItem('token');
-  
-  if (token && init?.headers) {
-    const headers = new Headers(init.headers);
-    if (!headers.has('Authorization')) {
-      headers.set('Authorization', `Bearer ${token}`);
-    }
-    return { ...init, headers };
-  }
-  
-  return init;
-};
-
 // Middleware para manejar token expirado
 export const tokenExpirationMiddleware: ResponseMiddleware = async (response) => {
   if (response.status === 401) {
@@ -96,23 +59,11 @@ export const tokenExpirationMiddleware: ResponseMiddleware = async (response) =>
 };
 
 // Middleware para reintentos
-export const retryMiddleware = (maxRetries: number = 3) => {
-  return async (request: RequestInfo | URL, init?: RequestInit): Promise<RequestInit | void> => {
-    if (!init) init = {};
-    
-    let retryCount = 0;
-    init.retryCount = retryCount;
-    init.maxRetries = maxRetries;
-    
-    return init;
-  };
-};
-
 // Middleware para timeout
 export const timeoutMiddleware = (timeoutMs: number = 30000) => {
-  return (request: RequestInfo | URL, init?: RequestInit): RequestInit => {
+  return (_request: RequestInfo | URL, init?: RequestInit): RequestInit => {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    void setTimeout(() => controller.abort(), timeoutMs);
 
     return {
       ...init,

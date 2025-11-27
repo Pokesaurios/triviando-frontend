@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import React, { useState, FormEvent } from 'react';
 import { motion } from 'framer-motion';
 import { Send } from 'lucide-react';
 

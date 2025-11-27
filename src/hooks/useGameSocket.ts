@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { getSocket } from '../lib/socket';
+import { normalizePlayer } from '../lib/api/normalizers';
 import type { GameState } from '../types/game.types';
 
 interface UseGameSocketReturn {
@@ -49,6 +50,19 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
   const currentUserId = JSON.parse(localStorage.getItem('user') || '{}').id;
   const isBlocked = gameState?.blocked?.[currentUserId] || false;
 
+  // Util: startCountdown - helper para crear timers de cuenta atrás
+  const startCountdown = (endTime: number, onTick: (remaining: number) => void): NodeJS.Timeout => {
+    const timer: NodeJS.Timeout = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+      onTick(remaining);
+      if (remaining === 0) {
+        clearInterval(timer);
+      }
+    }, 100);
+
+    return timer;
+  };
+
   // Limpiar timers
   const clearTimers = useCallback(() => {
     if (buzzerTimerRef.current) {
@@ -61,16 +75,36 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
     }
   }, []);
 
+  // Util: resetear el estado de interacción (buzzer/answer/player) de forma reutilizable
+  const resetInteractionState = useCallback((opts?: { clearPlayerPressed?: boolean }) => {
+    // Limpiar timers siempre
+    clearTimers();
+    // Ocultar buzzer / opciones y resetear flag de buzzer
+    setShowBuzzer(false);
+    setBuzzerPressed(false);
+    setShowAnswerOptions(false);
+    // Opcionalmente limpiar el player que presionó inmediatamente
+    if (opts?.clearPlayerPressed) {
+      setPlayerWhoPressed(null);
+      setPlayerWhoPressedId(null);
+    }
+  }, [clearTimers]);
+
   // ===== MANEJADOR CRÍTICO: game:update =====
   const handleGameUpdate = useCallback((newState: GameState) => {
     console.log('🎮 game:update recibido:', newState);
     
     setGameState(prevState => {
+      // Normalizar players si vienen en forma cruda
+      const normalizedPlayers = Array.isArray(newState.players)
+        ? newState.players.map(p => normalizePlayer(p as any))
+        : (prevState?.players || []);
+
       const updatedState = {
         ...prevState,
         ...newState,
         scores: newState.scores || prevState?.scores || {},
-        players: newState.players || prevState?.players || [],
+        players: normalizedPlayers,
         blocked: newState.blocked || prevState?.blocked || {},
       };
       
@@ -111,23 +145,17 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
     console.log('❓ Show question:', data);
     currentRoundSequence.current = data.roundSequence;
     
-    clearTimers();
+    // Resetear interacción y limpiar playerWhoPressed inmediatamente
+    resetInteractionState({ clearPlayerPressed: true });
     setCurrentQuestion(data.questionText);
-    setShowBuzzer(false);
-    setBuzzerPressed(false);
-    setShowAnswerOptions(false);
-    setPlayerWhoPressed(null);
-    setPlayerWhoPressedId(null);
 
     const endTime = Date.now() + data.readMs;
-    buzzerTimerRef.current = setInterval(() => {
-      const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+    buzzerTimerRef.current = startCountdown(endTime, (remaining) => {
       setTimeLeft(remaining);
-      if (remaining === 0 && buzzerTimerRef.current) {
-        clearInterval(buzzerTimerRef.current);
+      if (remaining === 0) {
         buzzerTimerRef.current = null;
       }
-    }, 100);
+    });
   }, [clearTimers]);
 
   // Open buzzer
@@ -139,19 +167,18 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
       return;
     }
 
+    // Solo limpiar timers; mostraremos el buzzer
     clearTimers();
     setShowBuzzer(true);
     setBuzzerPressed(false);
 
     const endTime = Date.now() + data.pressWindowMs;
-    buzzerTimerRef.current = setInterval(() => {
-      const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+    buzzerTimerRef.current = startCountdown(endTime, (remaining) => {
       setTimeLeft(remaining);
-      if (remaining === 0 && buzzerTimerRef.current) {
-        clearInterval(buzzerTimerRef.current);
+      if (remaining === 0) {
         buzzerTimerRef.current = null;
       }
-    }, 100);
+    });
   }, [clearTimers]);
 
   // Player won button
@@ -163,8 +190,8 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
       return;
     }
 
-    clearTimers();
-    setShowBuzzer(false);
+    // Reset interacción (sin limpiar inmediatamente el player) y luego marcar que ese jugador ganó el buzzer
+    resetInteractionState({ clearPlayerPressed: false });
     setBuzzerPressed(true);
     setPlayerWhoPressed(data.name);
     setPlayerWhoPressedId(data.playerId);
@@ -184,19 +211,18 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
       return;
     }
 
-    clearTimers();
+    // Reset timers / interaction state (no limpiar player)
+    resetInteractionState({ clearPlayerPressed: false });
     setCurrentOptions(data.options);
     setShowAnswerOptions(true);
 
     const endTime = data.endsAt || (Date.now() + data.answerTimeoutMs);
-    answerTimerRef.current = setInterval(() => {
-      const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+    answerTimerRef.current = startCountdown(endTime, (remaining) => {
       setAnswerTimeLeft(remaining);
-      if (remaining === 0 && answerTimerRef.current) {
-        clearInterval(answerTimerRef.current);
+      if (remaining === 0) {
         answerTimerRef.current = null;
       }
-    }, 100);
+    });
   }, [clearTimers]);
 
   // ===== MANEJADOR CRÍTICO: round:result =====
@@ -212,10 +238,8 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
     console.log('✅ Round result recibido:', data);
     console.log('📊 Scores del servidor:', data.scores);
     
-    clearTimers();
-    setShowBuzzer(false);
-    setShowAnswerOptions(false);
-    setBuzzerPressed(false);
+    // Limpiar timers y resetear interacción (mantener playerWhoPressed por 1s para el UI)
+    resetInteractionState({ clearPlayerPressed: false });
 
     // ⚠️ CRÍTICO: Actualizar scores con los datos del servidor
     if (data.scores) {
@@ -248,24 +272,18 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
     console.log('📊 Scores finales:', data.scores);
     console.log('👥 Jugadores finales:', data.players);
     
-    clearTimers();
-    
+    // Limpiar timers e interacción
+    resetInteractionState({ clearPlayerPressed: false });
+
     // Actualizar el gameState con scores finales
     setGameState(prev => {
       if (!prev) return prev;
       
-      // Si el backend envía el array de players con scores, usarlo
-      // Si no, mantener los players existentes y actualizar sus scores
-      let updatedPlayers = prev.players;
-      
-      if (data.players && data.players.length > 0) {
-        // Usar los players del backend si están disponibles
-        updatedPlayers = data.players.map(p => ({
-          userId: p.userId,
-          name: p.name,
-        }));
-      }
-      
+      // Normalizar players recibidos en el resultado final si vienen
+      const updatedPlayers = Array.isArray(data.players)
+        ? data.players.map(p => ({ userId: p.userId, name: p.name }))
+        : prev.players;
+
       return {
         ...prev,
         scores: { ...data.scores },
@@ -276,8 +294,7 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
     
     setGameEnded(true);
     setWinner(data.winner);
-    setShowBuzzer(false);
-    setShowAnswerOptions(false);
+    // ya fueron limpiados por resetInteractionState
   }, [clearTimers]);
 
   // Press buzzer action

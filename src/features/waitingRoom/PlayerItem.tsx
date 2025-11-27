@@ -32,7 +32,6 @@ export const PlayerItem: React.FC<PlayerItemProps> = ({
         name={playerName} 
         color={avatarColor} 
         size="md"
-        animated 
       />
       
       <div className="flex-1">

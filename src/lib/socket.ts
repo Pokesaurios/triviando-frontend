@@ -1,3 +1,5 @@
+// noinspection GrazieInspection
+
 import { io, Socket } from 'socket.io-client';
 import { SOCKET_CONFIG } from '../config/constants';
 
@@ -17,7 +19,7 @@ export function createAuthedSocket(token: string): Socket {
     return socket;
   }
   
-  // Si existe pero está desconectado, limpiarlo
+  // Si existe pero, está desconectado, limpiarlo
   if (socket) {
     socket.disconnect();
     socket.removeAllListeners();
@@ -75,19 +77,11 @@ export const connectSocket = (token: string) => {
   if (!socket) {
     createAuthedSocket(token);
   } else if (!socket.connected) {
-    // Si existe pero está desconectado, actualizar auth y reconectar
+    // Si existe pero, está desconectado, actualizar auth y reconectar
     socket.auth = { token };
     socket.connect();
   }
 };
-
-export const disconnectSocket = () => {
-  if (socket) {
-    socket.disconnect();
-    console.log(MESSAGES.SOCKET_MANUAL_DISCONNECT);
-  }
-};
-
 export const getSocket = (): Socket | null => {
   return socket;
 };
@@ -98,8 +92,4 @@ export const cleanupSocket = () => {
     socket.removeAllListeners();
     socket = null;
   }
-};
-
-export const getToken = (): string | null => {
-  return localStorage.getItem('token');
 };

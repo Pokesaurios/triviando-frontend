@@ -1,3 +1,5 @@
+// noinspection GrazieInspection
+
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
@@ -11,7 +13,7 @@ import GameResult from '../features/game/GameResult';
 import { ChatPanel } from '../features/chat/ChatPanel';
 import { getSocket, connectSocket } from '../lib/socket';
 import type { ReconnectResponse } from '../types/room.types';
-import type { BackendPlayerRaw } from '../types/backend.types';
+import { normalizePlayer } from '../lib/api/normalizers';
 import { GamePlayer } from '../types/game.types';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { useRoomSocket } from '../hooks/useRoomSocket';
@@ -35,7 +37,6 @@ export default function GamePage() {
     showAnswerOptions,
     timeLeft,
     answerTimeLeft,
-    totalQuestions,
     currentQuestionNumber,
     gameEnded,
     winner,
@@ -93,20 +94,11 @@ export default function GamePage() {
       socket.emit('room:reconnect', { code }, (response: ReconnectResponse) => {
         console.log('📥 Reconnect response:', response);
         if (response.ok && response.room) {
-          const roomPlayers: BackendPlayerRaw[] = response.room.players || [];
-          const validPlayers = roomPlayers
-            .filter((p) => p && (p.userId || p._id))
-            .map((p) => ({
-              userId: (typeof p.userId === 'string' && p.userId) || (p._id as string) || '',
-              name:
-                p.name ||
-                (typeof p.user === 'string'
-                  ? p.user
-                  : (p.user && (p.user as { name?: string }).name)) ||
-                'Jugador',
-            }));
-          
-          console.log('👥 Valid players:', validPlayers);
+          const roomPlayers = response.room.players || [];
+          const normalized = (roomPlayers || []).map((p: any) => normalizePlayer(p as any));
+          // Mapear al tipo GamePlayer usado en GamePage
+          const validPlayers: GamePlayer[] = normalized.map((p) => ({ userId: p.userId, name: p.name }));
+          console.log('👥 Valid players (normalized):', validPlayers);
           setPlayers(validPlayers);
           
           if (response.room.gameState) {
@@ -203,10 +195,10 @@ export default function GamePage() {
       <div className="relative z-10 p-4 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-          <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 text-white font-bold">
-            Pregunta {currentQuestionNumber}/{totalQuestions}
+            <div className="bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 text-white font-bold">
+              Pregunta {currentQuestionNumber}
+            </div>
           </div>
-        </div>
 
         <div className="grid lg:grid-cols-4 gap-4">
           {/* Main game area */}
@@ -217,7 +209,6 @@ export default function GamePage() {
                 question={currentQuestion}
                 timeLeft={timeLeft}
                 questionNumber={currentQuestionNumber}
-                totalQuestions={totalQuestions}
                 roomCode={code}
               />
             )}

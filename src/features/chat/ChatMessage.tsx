@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { PlayerAvatar } from '../../components/ui/PlayerAvatar';
 import { ChatMessage as ChatMessageType } from '../../types/chat.types';
 import { getAvatarColor } from '../../utils/avatar';
+import React from "react";
 
 interface ChatMessageProps {
   message: ChatMessageType;

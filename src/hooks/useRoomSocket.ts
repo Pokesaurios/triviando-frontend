@@ -1,3 +1,5 @@
+// noinspection GrazieInspection
+
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getSocket } from '../lib/socket';
@@ -5,6 +7,7 @@ import toast from 'react-hot-toast';
 import type { Room, Player } from '../types/room.types';
 import type { ChatMessage } from '../types/chat.types';
 import { SOCKET_CONFIG, SOCKET_EVENTS } from '../config/constants';
+import { normalizePlayer } from '../lib/api/normalizers';
 
 interface RoomJoinResponse {
   ok: boolean;
@@ -88,18 +91,19 @@ export const useRoomSocket = (
               });
             }
             
-            // Actualizar jugadores (ya vienen normalizados)
-            console.log('👥 Jugadores:', response.room.players);
-            
+            // Normalizar jugadores recibidos
+            const normalizedPlayers = (response.room.players || []).map((p) => normalizePlayer(p as any));
+            console.log('👥 Jugadores normalizados:', normalizedPlayers);
+
             if (onPlayersChanged) {
-              onPlayersChanged(response.room.players);
+              onPlayersChanged(normalizedPlayers);
             }
 
-            // Actualizar cache con los datos tal cual vienen
+            // Actualizar caché con los datos tal cual vienen
             queryClient.setQueryData<Room>(ROOM_KEYS.byCode(roomCode), (oldData) => ({
               ...oldData,
               code: response.room!.code,
-              players: response.room!.players,
+              players: normalizedPlayers,
               chatHistory: response.room!.chatHistory,
             }));
           } else {
@@ -125,15 +129,16 @@ export const useRoomSocket = (
         
         // Jugador se unió
         if (data.event === 'playerJoined' && data.players) {
-          console.log('➕ Actualizando jugadores:', data.players);
-          
+          console.log('➕ Actualizando jugadores (raw):', data.players);
+          const normalized = (data.players || []).map(p => normalizePlayer(p as any));
+
           if (onPlayersChanged) {
-            onPlayersChanged(data.players);
+            onPlayersChanged(normalized);
           }
           
           return {
             ...oldData,
-            players: data.players,
+            players: normalized,
           };
         }
         
@@ -149,13 +154,13 @@ export const useRoomSocket = (
             onPlayersChanged(updatedPlayers);
           }
           
-          return {
-            ...oldData,
-            players: updatedPlayers,
-          };
-        }
-        
-        return oldData;
+           return {
+             ...oldData,
+             players: updatedPlayers,
+           };
+         }
+
+         return oldData;
       });
       
       // Mostrar notificaciones

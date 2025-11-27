@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { tapScale } from '../../config/animations';
+import React from "react";
 
 interface AuthTabsProps {
   isLogin: boolean;

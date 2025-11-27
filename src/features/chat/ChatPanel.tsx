@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { MessageCircle } from 'lucide-react';
 import { ChatMessage as ChatMessageComponent } from './ChatMessage';
@@ -18,10 +18,28 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   onSendMessage,
   isConnected = true
 }) => {
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  // Referencia al contenedor de mensajes (el elemento con overflow-y-auto).
+  const containerRef = useRef<HTMLDivElement>(null);
 
+  // Hacer scroll sólo dentro del contenedor para evitar desplazar la página entera.
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = containerRef.current;
+    if (!el) return;
+
+    // Sólo hacer auto-scroll si el usuario está cerca del final (por ejemplo, 150px)
+    // de lo contrario respetamos la posición del usuario (está leyendo mensajes anteriores).
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const shouldAutoScroll = distanceFromBottom < 150;
+
+    if (!shouldAutoScroll) return;
+
+    // Usar scrollTo en el propio contenedor para que no afecte al document body.
+    try {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    } catch {
+      // Fallback si el navegador no soporta behavior option.
+      el.scrollTop = el.scrollHeight;
+    }
   }, [messages]);
 
   return (
@@ -37,7 +55,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       </div>
 
       {/* Mensajes */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-gray-50 to-white">
+      <div ref={containerRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-gray-50 to-white">
         <AnimatePresence>
           {messages.length > 0 ? (
             messages.map((msg) => (
@@ -54,7 +72,8 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             </div>
           )}
         </AnimatePresence>
-        <div ref={chatEndRef} />
+        {/* Elemento final opcional (no usado para scroll). */}
+        <div />
       </div>
 
       {/* Input */}

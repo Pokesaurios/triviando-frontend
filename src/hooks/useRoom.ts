@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { roomServices } from '../lib/services/roomServices';
 import type {
   CreateRoomRequest,
-  JoinRoomRequest
+  JoinRoomRequest,
+  Room
 } from '../types/room.types';
 
 export const ROOM_KEYS = {
@@ -45,7 +46,7 @@ export const useRoom = (
 ) => {
   return useQuery({
     queryKey: ROOM_KEYS.byCode(code),
-    queryFn: () => roomServices.getRoomByCode(code),
+    queryFn: (): Promise<Room> => roomServices.getRoomByCode(code),
     enabled: enabled && !!code,
     refetchInterval: (query) => {
       if (socketConnected) {
@@ -53,6 +54,7 @@ export const useRoom = (
       }
       
       const data = query.state.data;
+      // Asegurar que status usa valores normalizados
       return data?.status === 'waiting' ? 10000 : false;
     },
     staleTime: 5000,

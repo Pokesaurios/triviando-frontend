@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { fadeIn } from '../../config/animations';
+import React from "react";
 
 export const Footer: React.FC = () => {
   return (

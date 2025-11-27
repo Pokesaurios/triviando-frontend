@@ -1,7 +1,9 @@
 import { apiClient } from '../api/apiClient';
 import { LoginCredentials, RegisterCredentials, User, AuthResponse } from '../../types/auth.types';
+import { BackendUserRaw } from '../../types/backend.types';
 import { connectSocket, cleanupSocket } from '../socket';
 import { API_ENDPOINTS } from '../../config/endpoints';
+import { normalizeUser } from '../api/normalizers';
 
 
 interface AuthServiceResponse {
@@ -104,14 +106,15 @@ class AuthService {
   }
   
   async fetchCurrentUser(): Promise<User | null> {
-    const response = await apiClient.get<User>(API_ENDPOINTS.AUTH.ME, {
+    const response = await apiClient.get<BackendUserRaw>(API_ENDPOINTS.AUTH.ME, {
       requiresAuth: true,
     });
     
     if (response.success && response.data) {
+      const normalized = normalizeUser(response.data);
       // Actualizar los datos en localStorage
-      localStorage.setItem('user', JSON.stringify(response.data));
-      return response.data;
+      localStorage.setItem('user', JSON.stringify(normalized));
+      return normalized;
     }
     
     return null;

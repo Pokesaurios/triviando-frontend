@@ -3,7 +3,7 @@ import { AuthFormState, AuthMessage } from '../types/auth.types';
 import { MESSAGES } from '../config/constants';
 import { authService } from '../lib/services/authServices';
 
-export const useAuthForm = (isLogin: boolean) => {
+export const useAuthForm = (isLogin: boolean = true) => {
   const [formState, setFormState] = useState<AuthFormState>({
     email: '',
     password: '',

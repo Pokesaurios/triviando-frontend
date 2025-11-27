@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '../lib/api/queryClient';
@@ -22,7 +22,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   }
   
   return <>{children}</>;
-};
+}
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);

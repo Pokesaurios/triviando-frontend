@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { Alert } from '../../components/ui/Alert';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 import { AuthFormState } from '../../types/auth.types';
+import React from "react";
 
 interface AuthFormProps {
   isLogin: boolean;
@@ -30,8 +31,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({
           <InputField
             label="Nombre de Usuario"
             type="text"
-            value={formState.userName}
-            onChange={(value) => onFieldChange('userName', value)}
+            value={formState.username}
+            onChange={(value) => onFieldChange('username', value)}
             placeholder="TriviaChampion"
             icon={User}
             required={!isLogin}

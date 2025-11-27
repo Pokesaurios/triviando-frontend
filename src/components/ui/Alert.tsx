@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { AlertCircle, CheckCircle } from 'lucide-react';
 import { AuthMessage } from '../../types/auth.types';
+import React from "react";
 
 interface AlertProps {
   message: AuthMessage;

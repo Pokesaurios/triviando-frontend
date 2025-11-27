@@ -1,4 +1,4 @@
-import { color, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { AnimatedBackground } from '../components/ui/AnimatedBackground';
 import { LogoHeader } from '../components/ui/LogoHeader';
@@ -25,7 +25,8 @@ interface PlayerStats {
 export default function StatsPage() {
   const navigate = useNavigate();
   const userData = localStorage.getItem('user');
-  const userId = userData ? JSON.parse(userData)._id : '';
+  // localStorage user is normalized (id, name, email)
+  const userId = userData ? JSON.parse(userData).id : '';
   const username = userData ? JSON.parse(userData).name : 'Trivia';
 
   const { data: gameResults, isLoading } = useQuery({
@@ -34,7 +35,7 @@ export default function StatsPage() {
   });
 
   const userGames = gameResults?.filter(game => 
-    game.players.some(player => player.userName === username)
+    game.players.some(player => player.name === username)
   );
 
   const stats: PlayerStats = userGames?.length ? {
@@ -53,7 +54,7 @@ export default function StatsPage() {
     bestScore: Math.max(...userGames.map(game => game.scores[userId] || 0)),
     gamesWon: userGames.filter(game => game.winner?.userId === userId).length,
     topicsPlayed: userGames.reduce((acc: {[key: string]: number}, game) => {
-      const topic = game.triviaId.topic;
+      const topic = game.triviaId.topic ?? 'Sin tema';
       acc[topic] = (acc[topic] || 0) + 1;
       return acc;
     }, {}),
@@ -270,7 +271,7 @@ function RecentGames({ games }: { games: GameResultType[] }) {
                   {game.winner && (
                     <div className="text-center">
                       <p className="text-sm text-gray-600 font-semibold">Ganador</p>
-                      <p className="text-xl font-bold text-green-600">{game.winner.userName}</p>
+                      <p className="text-xl font-bold text-green-600">{game.winner.name}</p>
                     </div>
                   )}
                   <div className="flex items-center gap-2">

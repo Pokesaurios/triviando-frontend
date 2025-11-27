@@ -1,13 +1,10 @@
 import { apiClient } from "../api/apiClient";
 import { GameResultType } from "../../types/stats.types";
+import { BackendGameResultRaw } from '../../types/backend.types';
+import { normalizeGameResult } from '../api/normalizers';
 
 export const getGameResults = async (): Promise<GameResultType[]> => {
-  const response = await apiClient.get<GameResultType[]>("/game-results");
-  return response.data ?? [];
-};
-
-export const getGameResultByRoom = async (roomCode: string): Promise<GameResultType> => {
-  const response = await apiClient.get<GameResultType>(`/game-results/${roomCode}`);
-  if (!response.data) throw new Error(`Game result for room ${roomCode} not found`);
-  return response.data;
+  const response = await apiClient.get<BackendGameResultRaw[]>('/game-results');
+  const raws = response.data ?? [];
+  return raws.map(normalizeGameResult);
 };
