@@ -82,6 +82,13 @@ export const connectSocket = (token: string) => {
     socket.connect();
   }
 };
+export const disconnectSocket = () => {
+  if (socket) {
+    socket.disconnect();
+    console.log(MESSAGES.SOCKET_MANUAL_DISCONNECT);
+  }
+};
+
 export const getSocket = (): Socket | null => {
   return socket;
 };
@@ -92,4 +99,8 @@ export const cleanupSocket = () => {
     socket.removeAllListeners();
     socket = null;
   }
+};
+
+export const getToken = (): string | null => {
+  return localStorage.getItem('token');
 };
