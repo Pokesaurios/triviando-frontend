@@ -4,5 +4,20 @@ import type {
   GenerateTriviaRequest,
   GenerateTriviaResponse,
 } from '../../types/trivia.types';
-import { BackendTriviaRaw } from '../../types/backend.types';
-import { normalizeTrivia } from '../api/normalizers';
+
+export const triviaServices = {
+
+  generateTrivia: async (data: GenerateTriviaRequest) => {
+    const response = await apiClient.post<GenerateTriviaResponse>(
+      API_ENDPOINTS.TRIVIA.GENERATE,
+      data,
+      { requiresAuth: true }
+    );
+
+    if (!response.success) {
+      throw new Error(response.error || 'Error al generar la trivia');
+    }
+
+    return response.data!;
+  },
+};
