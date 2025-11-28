@@ -8,3 +8,9 @@ export const getGameResults = async (): Promise<GameResultType[]> => {
   const raws = response.data ?? [];
   return raws.map(normalizeGameResult);
 };
+
+export const getGameResultByRoom = async (roomCode: string): Promise<GameResultType> => {
+  const response = await apiClient.get<BackendGameResultRaw>(`/game-results/${roomCode}`);
+  if (!response.data) throw new Error(`Game result for room ${roomCode} not found`);
+  return normalizeGameResult(response.data);
+};
