@@ -1,5 +1,3 @@
-// noinspection GrazieInspection
-
 import { io, Socket } from 'socket.io-client';
 import { SOCKET_CONFIG } from '../config/constants';
 
@@ -15,7 +13,7 @@ let socket: Socket | null = null;
 
 export function createAuthedSocket(token: string): Socket {
   // Si ya existe un socket conectado, retornarlo
-  if (socket && socket.connected) {
+  if (socket?.connected) {
     return socket;
   }
   
@@ -74,12 +72,14 @@ export const connectSocket = (token: string) => {
   }
   
   // Si no existe socket, crear uno nuevo
-  if (!socket) {
-    createAuthedSocket(token);
-  } else if (!socket.connected) {
-    // Si existe pero, está desconectado, actualizar auth y reconectar
-    socket.auth = { token };
-    socket.connect();
+  if (!socket?.connected) {
+    if (!socket) {
+      createAuthedSocket(token);
+    } else {
+      // Si existe pero está desconectado, actualizar auth y reconectar
+      socket.auth = { token };
+      socket.connect();
+    }
   }
 };
 export const getSocket = (): Socket | null => {

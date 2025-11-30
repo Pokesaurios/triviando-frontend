@@ -8,9 +8,9 @@ interface BackgroundBubblesProps {
 export const BackgroundBubbles: React.FC<BackgroundBubblesProps> = ({ count = 20 }) => {
   return (
     <div className="absolute inset-0 overflow-hidden">
-      {[...new Array(count)].map((_, i) => (
+      {Array.from({ length: count }).map((_, i) => (
         <motion.div
-          key={i}
+          key={`bubble-${i}`}
           className="absolute bg-white/10 rounded-full"
           style={{
             width: Math.random() * 100 + 50,

@@ -10,7 +10,7 @@ type ResponseMiddleware = (response: Response) => Promise<Response> | Response;
 
 class MiddlewareManager {
   private requestMiddlewares: MiddlewareFunction[] = [];
-  private responseMiddlewares: ResponseMiddleware[] = [];
+  private readonly responseMiddlewares: ResponseMiddleware[] = [];
 
   // Agregar middleware de request
   addRequestMiddleware(middleware: MiddlewareFunction): void {
@@ -63,7 +63,7 @@ export const tokenExpirationMiddleware: ResponseMiddleware = async (response) =>
 export const timeoutMiddleware = (timeoutMs: number = 30000) => {
   return (_request: RequestInfo | URL, init?: RequestInit): RequestInit => {
     const controller = new AbortController();
-    void setTimeout(() => controller.abort(), timeoutMs);
+    setTimeout(() => controller.abort(), timeoutMs);
 
     return {
       ...init,

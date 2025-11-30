@@ -1,5 +1,3 @@
-// noinspection GrazieInspection
-
 import { apiClient } from '../api/apiClient';
 import { API_ENDPOINTS } from '../../config/endpoints';
 import type {
@@ -66,7 +64,7 @@ export const roomServices = {
     if (roomRaw) {
       // Attempt to normalize; if normalization fails, fall back to raw room object
       /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-      try { return normalizeRoom(roomRaw); } catch (_e) { /* fallback abajo */ }
+      try { return normalizeRoom(roomRaw); } catch (error_) { /* fallback abajo */ }
     }
     return response.data!.room;
   },

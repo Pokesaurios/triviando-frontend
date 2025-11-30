@@ -11,9 +11,9 @@ export const DecorativeBackground: React.FC<DecorativeBackgroundProps> = ({
 }) => {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {[...new Array(particleCount)].map((_, i) => (
+      {Array.from({ length: particleCount }).map((_, i) => (
         <motion.div
-          key={i}
+          key={`particle-${i}`}
           className="absolute bg-white/10 rounded-full"
           style={{
             width: Math.random() * 80 + 40,

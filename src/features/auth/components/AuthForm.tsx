@@ -32,6 +32,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
   isLoading,
   message,
 }) => {
+  const buttonText = isLogin ? '¡Jugar Ahora!' : '¡Crear Cuenta!';
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       {!isLogin && (
@@ -80,11 +81,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
         disabled={isLoading}
         className="w-full"
       >
-        {isLoading ? (
-          <LoadingSpinner />
-        ) : (
-          isLogin ? '¡Jugar Ahora!' : '¡Crear Cuenta!'
-        )}
+        {isLoading ? <LoadingSpinner /> : buttonText}
       </Button>
     </form>
   );

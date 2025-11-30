@@ -37,7 +37,7 @@ export const WaitingRoomContainer: React.FC<WaitingRoomContainerProps> = ({
     }
     
     const socket = getSocket();
-    if (socket && socket.connected) {
+    if (socket?.connected) {
       let handled = false;
       try {
         socket.emit(SOCKET_EVENTS.GAME_START, { code: room.code }, (ack?: { ok?: boolean; message?: string }) => {
@@ -65,7 +65,7 @@ export const WaitingRoomContainer: React.FC<WaitingRoomContainerProps> = ({
 
   const handleLeaveRoom = useCallback(() => {
     const socket = getSocket();
-    if (socket && socket.connected) {
+    if (socket?.connected) {
       let completed = false;
       try {
         socket.emit('room:leave', { code: room.code }, (ack?: { ok?: boolean; message?: string }) => {

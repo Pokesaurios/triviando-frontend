@@ -18,7 +18,7 @@ export default function BuzzerButton({
   onPress,
   isBlocked,
   isWaitingAck,
-}: BuzzerButtonProps) {
+}: Readonly<BuzzerButtonProps>): JSX.Element {
   return (
     <AnimatePresence mode="wait">
       {showBuzzer && !buzzerPressed && !isBlocked && (

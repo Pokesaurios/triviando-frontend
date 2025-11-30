@@ -5,10 +5,10 @@ import { useWindowSize } from 'react-use';
 import type { GamePlayer } from '../../types/game.types';
 
 interface GameResultProps {
-  winner: { userId: string; name: string; score: number };
-  players: GamePlayer[];
-  scores: Record<string, number>;
-  onGoHome: () => void;
+  readonly winner: { userId: string; name: string; score: number };
+  readonly players: GamePlayer[];
+  readonly scores: Record<string, number>;
+  readonly onGoHome: () => void;
 }
 
 export default function GameResult({ winner, players, scores, onGoHome }: GameResultProps) {

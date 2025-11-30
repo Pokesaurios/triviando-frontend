@@ -119,7 +119,7 @@ export default function GamePage() {
       socket.emit('room:reconnect', { code }, handleReconnectResponse);
     }
 
-    if (socket && socket.connected) {
+    if (socket?.connected) {
       reconnectToRoom();
     } else if (socket) {
       socket.once('connect', reconnectToRoom);

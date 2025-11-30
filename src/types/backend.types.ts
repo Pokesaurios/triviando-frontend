@@ -1,7 +1,3 @@
-// types/backend.types.ts
-// Tipos que representan las respuestas "crudas" que el backend puede devolver.
-// Normaliza en servicios o normalizadores antes de usarlos en la UI.
-
 export interface BackendUserRaw {
   _id?: string;
   id?: string;
@@ -16,7 +12,7 @@ export interface BackendQuestionRaw {
   question?: string;
   options?: string[];
   correctAnswer?: string;
-  difficulty?: 'easy' | 'medium' | 'hard' | string;
+  difficulty?: 'easy' | 'medium' | 'hard';
 }
 
 export interface BackendTriviaRaw {
@@ -45,7 +41,7 @@ export interface BackendRoomRaw {
   code?: string;
   hostId?: string | { _id?: string };
   triviaId?: string | { _id?: string; topic?: string };
-  status?: 'waiting' | 'in-game' | 'finished' | string;
+  status?: 'waiting' | 'in-game' | 'finished';
   maxPlayers?: number;
   players?: BackendPlayerRaw[] | null;
   createdAt?: string | Date;

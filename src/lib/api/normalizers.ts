@@ -27,7 +27,7 @@ export function normalizeQuestion(raw: any): Question {
     question: raw.question ?? '',
     options: Array.isArray(raw.options) ? raw.options : [],
     correctAnswer: raw.correctAnswer ?? '',
-    difficulty: (raw.difficulty as any) ?? 'easy',
+    difficulty: raw.difficulty ?? 'easy',
   };
 }
 

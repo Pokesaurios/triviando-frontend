@@ -4,9 +4,9 @@ import { useMemo } from 'react';
 import type { GamePlayer } from '../../types/game.types';
 
 interface GameRankingProps {
-  players: GamePlayer[];
-  scores: Record<string, number>;
-  currentUserId: string;
+  readonly players: GamePlayer[];
+  readonly scores: Record<string, number>;
+  readonly currentUserId: string;
 }
 
 export default function GameRanking({ players, scores, currentUserId }: GameRankingProps) {
@@ -21,7 +21,7 @@ export default function GameRanking({ players, scores, currentUserId }: GameRank
         score: scores[player.userId] || 0
       }))
       .sort((a, b) => b.score - a.score);
-  }, [players, scores]); // ⚠️ Dependencias críticas: recalcular cuando cambien
+  }, [players, scores]);
 
   const getRankIcon = (index: number) => {
     switch (index) {

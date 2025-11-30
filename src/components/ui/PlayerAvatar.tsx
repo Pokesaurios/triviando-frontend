@@ -1,10 +1,10 @@
 import { motion } from 'framer-motion';
 import { getInitials } from '../../utils/avatar';
 interface PlayerAvatarProps {
-  name?: string;
-  color: string;
-  size?: 'sm' | 'md' | 'lg';
-  isOnline?: boolean;
+  readonly name?: string;
+  readonly color: string;
+  readonly size?: 'sm' | 'md' | 'lg';
+  readonly isOnline?: boolean;
 }
 
 export function PlayerAvatar({ name, color, size = 'md', isOnline }: PlayerAvatarProps) {

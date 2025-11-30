@@ -90,7 +90,7 @@ export const useChat = (): UseChatReturn => {
   const sendMessage = useCallback((messageText: string, roomCode: string) => {
     const socket = getSocket();
     
-    if (!socket || !socket.connected) {
+    if (!socket?.connected) {
       console.error('❌ Socket no conectado. No se puede enviar mensaje.');
       return;
     }
@@ -117,7 +117,7 @@ export const useChat = (): UseChatReturn => {
   const loadChatHistory = useCallback((roomCode: string) => {
     const socket = getSocket();
     
-    if (!socket || !socket.connected) {
+    if (!socket?.connected) {
       console.warn('Socket no conectado, no se puede cargar historial');
       return;
     }

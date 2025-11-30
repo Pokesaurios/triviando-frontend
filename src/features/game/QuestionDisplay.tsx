@@ -13,7 +13,7 @@ export default function QuestionDisplay({
   timeLeft,
   questionNumber,
   roomCode,
-}: QuestionDisplayProps) {
+}: Readonly<QuestionDisplayProps>) {
   const getTimerColor = () => {
     const percentage = (timeLeft / 30) * 100;
     if (percentage > 66) return 'from-green-400 to-green-600';

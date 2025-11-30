@@ -3,10 +3,10 @@ import { Clock } from 'lucide-react';
 import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 
 interface AnswerOptionsProps {
-  options: string[];
-  onSelect: (index: number) => void;
-  timeLeft: number;
-  isWaitingAck?: boolean;
+  readonly options: string[];
+  readonly onSelect: (index: number) => void;
+  readonly timeLeft: number;
+  readonly isWaitingAck?: boolean;
 }
 
 export default function AnswerOptions({ options, onSelect, timeLeft, isWaitingAck }: AnswerOptionsProps) {
@@ -37,7 +37,7 @@ export default function AnswerOptions({ options, onSelect, timeLeft, isWaitingAc
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {options.map((option, index) => (
           <motion.button
-            key={index}
+            key={option}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => onSelect(index)}
