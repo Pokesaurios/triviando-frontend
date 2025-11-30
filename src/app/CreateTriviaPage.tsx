@@ -67,7 +67,7 @@ export default function CreateTriviaPage() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    window.location.reload();
+    globalThis.location.reload();
   };
 
   return (
@@ -95,10 +95,11 @@ export default function CreateTriviaPage() {
               </h2>
               <form onSubmit={handleGenerateTrivia} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                  <label htmlFor="topic" className="block text-sm font-bold text-gray-700 mb-2">
                     Tema de la Trivia
                   </label>
                   <input
+                    id="topic"
                     type="text"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
@@ -106,17 +107,18 @@ export default function CreateTriviaPage() {
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-cyan-500 focus:outline-none transition-colors text-gray-600 disabled:bg-gray-100"
                     placeholder="Ej: Historia del Arte, Ciencia, Deportes ..."
                   />
-                  {alert && alert.type === 'error' && alert.text.includes('tema') && (
+                  {alert?.type === 'error' && alert?.text?.includes('tema') && (
                     <div className="mt-2">
-                      <Alert message={{ type: 'error', text: alert.text }} />
+                      <Alert message={{ type: 'error', text: alert?.text ?? '' }} />
                     </div>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                  <label htmlFor="maxPlayers" className="block text-sm font-bold text-gray-700 mb-2">
                     Número de jugadores
                   </label>
                   <input
+                    id="maxPlayers"
                     type="number"
                     value={maxPlayers}
                     onChange={(e) => setMaxPlayers(e.target.value)}
@@ -124,18 +126,19 @@ export default function CreateTriviaPage() {
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-cyan-500 focus:outline-none transition-colors text-gray-600 disabled:bg-gray-100"
                     placeholder="Ej: 20 ..."
                   />
-                  {alert && alert.type === 'error' && alert.text.includes('jugadores') && (
+                  {alert?.type === 'error' && alert?.text?.includes('jugadores') && (
                     <div className="mt-2">
-                      <Alert message={{ type: 'error', text: alert.text }} />
+                      <Alert message={{ type: 'error', text: alert?.text ?? '' }} />
                     </div>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                  <label htmlFor="numQuestions" className="block text-sm font-bold text-gray-700 mb-2">
                     Número de preguntas
                   </label>
                   <div className="relative">
                     <select
+                      id="numQuestions"
                       value={numQuestions}
                       onChange={(e) => setNumQuestions(e.target.value)}
                       disabled={createRoomMutation.isPending}

@@ -14,7 +14,7 @@ import StatsPage from './StatsPage';
 
 
 // Componente para proteger rutas
-function PrivateRoute({ children }: { children: React.ReactNode }) {
+function PrivateRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   const isAuthenticated = authService.isAuthenticated();
   
   if (!isAuthenticated) {

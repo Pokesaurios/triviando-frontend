@@ -41,9 +41,13 @@ export const AuthContainer: React.FC = () => {
         
         {isLogin && (
           <div className="text-center mt-4">
-            <a href="#" className="text-sm text-blue-500 hover:text-blue-700 font-semibold">
+            <button
+              type="button"
+              className="text-sm text-blue-500 hover:text-blue-700 font-semibold"
+              aria-label="Recuperar contraseña"
+            >
               ¿Olvidaste tu contraseña?
-            </a>
+            </button>
           </div>
         )}
       </div>

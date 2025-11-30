@@ -17,7 +17,7 @@ export default function JoinRoomPage() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    window.location.reload();
+    globalThis.location.reload();
   };
   const handleJoinRoom = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,10 +81,11 @@ export default function JoinRoomPage() {
               </h2>
               <form onSubmit={handleJoinRoom} className="space-y-5">
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                  <label htmlFor="roomCode" className="block text-sm font-bold text-gray-700 mb-2">
                     Código de la Sala
                   </label>
                   <input
+                    id="roomCode"
                     type="text"
                     value={roomCode}
                     onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
@@ -93,9 +94,9 @@ export default function JoinRoomPage() {
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-cyan-500 focus:outline-none transition-colors text-gray-600 text-center text-2xl font-bold tracking-widest disabled:bg-gray-100"
                     placeholder="X4BZ7Q"
                   />
-                  {alert && alert.type === 'error' && (
+                  {alert?.type === 'error' && (
                     <div className="mt-2">
-                      <Alert message={{ type: 'error', text: alert.text }} />
+                      <Alert message={{ type: 'error', text: alert?.text ?? '' }} />
                     </div>
                   )}
                 </div>

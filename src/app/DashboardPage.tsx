@@ -15,7 +15,7 @@ export default function DashboardPage() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    window.location.reload();
+    globalThis.location.reload();
   };
 
   const handleCreateTrivia = () => {

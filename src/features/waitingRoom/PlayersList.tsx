@@ -1,6 +1,5 @@
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Users } from 'lucide-react';
-import { AnimatePresence } from 'framer-motion';
 import { PlayerItem } from './PlayerItem';
 import { getAvatarColor } from '../../utils/avatar';
 import { Player } from '../../types/room.types';

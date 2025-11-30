@@ -2,7 +2,7 @@ export const validateMaxPlayers = (players: number): {
   isValid: boolean;
   error?: string;
 } => {
-  if (isNaN(players) || players <= 0) {
+  if (Number.isNaN(players) || players <= 0) {
     return { isValid: false, error: 'El número de jugadores debe ser mayor que 0.' };
   }
   if (players > 20) {

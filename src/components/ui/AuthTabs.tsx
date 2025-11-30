@@ -30,7 +30,7 @@ export const AuthTabs: React.FC<AuthTabsProps> = ({
         {...tapScale}
         onClick={onRegisterClick}
         className={`flex-1 py-2 px-4 rounded-full font-bold transition-all ${
-          !isLogin
+          isLogin
             ? 'bg-purple-500 text-white shadow-lg'
             : 'bg-gray-200 text-gray-600'
         }`}

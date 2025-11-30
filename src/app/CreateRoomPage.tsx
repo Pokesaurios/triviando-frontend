@@ -21,7 +21,7 @@ export default function CreateRoomPage() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    window.location.reload();
+    globalThis.location.reload();
   };
 
   const handleBack = () => {
@@ -114,17 +114,18 @@ export default function CreateRoomPage() {
             <LogoHeader variant="dashboard" />
 
             <div className="bg-white p-6 mt-5">
-              {!roomCode ? (
+              {roomCode ? (
                 <>
                   <h2 className="text-2xl font-bold text-gray-900 mb-6">
                     Crear Sala de Trivia
                   </h2>
                   <form onSubmit={handleCreateRoom} className="space-y-5">
                     <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">
+                      <label htmlFor="topic" className="block text-sm font-bold text-gray-700 mb-2">
                         Tema
                       </label>
                       <input
+                        id="topic"
                         type="text"
                         value={topic}
                         onChange={(e) => setTopic(e.target.value)}
@@ -135,10 +136,11 @@ export default function CreateRoomPage() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">
+                      <label htmlFor="maxPlayers" className="block text-sm font-bold text-gray-700 mb-2">
                         Número de jugadores
                       </label>
                       <input
+                        id="maxPlayers"
                         type="number"
                         value={maxPlayers}
                         onChange={(e) => setMaxPlayers(e.target.value)}

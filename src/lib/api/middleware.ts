@@ -52,7 +52,7 @@ export const tokenExpirationMiddleware: ResponseMiddleware = async (response) =>
       console.warn('Token expirado, redirigiendo a login...');
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      globalThis.location.href = '/login';
     }
   }
   return response;

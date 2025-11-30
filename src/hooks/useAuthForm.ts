@@ -69,7 +69,7 @@ export const useAuthForm = (isLogin: boolean = true) => {
 
         setTimeout(() => {
           console.log('Redirigiendo al dashboard...');
-          window.location.reload();
+          globalThis.location.reload();
         }, 1000);
         
       } else {

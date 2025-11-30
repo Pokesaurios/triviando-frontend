@@ -36,8 +36,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           disabled={disabled}
         />
         <motion.button
-          whileHover={!disabled ? { scale: 1.05 } : {}}
-          whileTap={!disabled ? { scale: 0.95 } : {}}
+          whileHover={disabled ? { scale: 1.05 } : {}}
+          whileTap={disabled ? { scale: 0.95 } : {}}
           type="submit"
           disabled={!message.trim() || disabled}
           className="bg-gradient-to-r from-purple-500 to-pink-500 text-white p-3 rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"

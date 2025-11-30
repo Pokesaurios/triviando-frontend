@@ -4,7 +4,7 @@ const AVATAR_COLORS = [
 ];
 
 export const getAvatarColor = (userId: string): string => {
-  const hash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const hash = userId.split('').reduce((acc, char) => acc + (char.codePointAt(0) ?? 0), 0);
   const index = hash % AVATAR_COLORS.length;
   return AVATAR_COLORS[index];
 };

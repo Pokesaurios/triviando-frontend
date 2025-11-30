@@ -222,7 +222,7 @@ function TopicsBar({ index, topic, count, max }: any) {
   );
 }
 
-function RecentGames({ games }: { games: GameResultType[] }) {
+function RecentGames({ games }: { readonly games: ReadonlyArray<GameResultType> }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}

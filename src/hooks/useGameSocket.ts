@@ -363,7 +363,7 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
       handleGameUpdate(event.detail);
     };
 
-    window.addEventListener('triviando:gameStateInit', handleGameStateInit as EventListener);
+    globalThis.addEventListener('triviando:gameStateInit', handleGameStateInit as EventListener);
 
     return () => {
       console.log('🔌 Limpiando listeners de socket');
@@ -375,7 +375,7 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
       socket.off('round:answerRequest', handleAnswerRequest);
       socket.off('round:result', handleRoundResult);
       socket.off('game:ended', handleGameEnded);
-      window.removeEventListener('triviando:gameStateInit', handleGameStateInit as EventListener);
+      globalThis.removeEventListener('triviando:gameStateInit', handleGameStateInit as EventListener);
       clearTimers();
     };
   }, [

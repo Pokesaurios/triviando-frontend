@@ -1,5 +1,3 @@
-// noinspection GrazieInspection
-
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
@@ -71,7 +69,7 @@ export default function GamePage() {
 
     const socket = getSocket();
     if (!socket?.connected) {
-      connectSocket(token as string);
+      connectSocket(token);
     }
 
     const rafId = requestAnimationFrame(() => setCurrentUserId(user.id));
@@ -88,46 +86,49 @@ export default function GamePage() {
     const socket = getSocket();
     if (!socket) return;
 
-    const reconnectToRoom = () => {
-      console.log('🔄 Reconnecting to room:', code);
-      
-      socket.emit('room:reconnect', { code }, (response: ReconnectResponse) => {
-        console.log('📥 Reconnect response:', response);
-        if (response.ok && response.room) {
-          const roomPlayers = response.room.players || [];
-          const normalized = (roomPlayers || []).map((p: any) => normalizePlayer(p as any));
-          // Mapear al tipo GamePlayer usado en GamePage
-          const validPlayers: GamePlayer[] = normalized.map((p) => ({ userId: p.userId, name: p.name }));
-          console.log('👥 Valid players (normalized):', validPlayers);
-          setPlayers(validPlayers);
-          
-          if (response.room.gameState) {
-            console.log('🎮 Game state restored:', response.room.gameState);
-            try {
-              window.dispatchEvent(new CustomEvent('triviando:gameStateInit', { 
-                detail: response.room.gameState 
-              }));
-            } catch (err) {
-              console.warn('Unable to dispatch gameStateInit event:', err);
-            }
-          }
-          
-          setIsReconnecting(false);
-        } else {
-          console.error('❌ Failed to reconnect:', response);
-          navigate('/dashboard');
-        }
-      });
-    };
+    function handleReconnectResponse(response: ReconnectResponse) {
+      console.log('📥 Reconnect response:', response);
+      if (response.ok && response.room) {
+        const roomPlayers = response.room.players || [];
+        const normalized = roomPlayers.map((p: any) => normalizePlayer(p));
+        const validPlayers: GamePlayer[] = normalized.map((p) => ({ userId: p.userId, name: p.name }));
+        console.log('👥 Valid players (normalized):', validPlayers);
+        setPlayers(validPlayers);
 
-    if (socket.connected) {
+        if (response.room.gameState) {
+          console.log('🎮 Game state restored:', response.room.gameState);
+          try {
+            globalThis.dispatchEvent(new CustomEvent('triviando:gameStateInit', {
+              detail: response.room.gameState
+            }));
+          } catch (err) {
+            console.warn('Unable to dispatch gameStateInit event:', err);
+          }
+        }
+
+        setIsReconnecting(false);
+      } else {
+        console.error('❌ Failed to reconnect:', response);
+        navigate('/dashboard');
+      }
+    }
+
+    function reconnectToRoom() {
+      if (!socket) return;
+      console.log('🔄 Reconnecting to room:', code);
+      socket.emit('room:reconnect', { code }, handleReconnectResponse);
+    }
+
+    if (socket && socket.connected) {
       reconnectToRoom();
-    } else {
+    } else if (socket) {
       socket.once('connect', reconnectToRoom);
     }
 
     return () => {
-      socket.off('connect', reconnectToRoom);
+      if (socket) {
+        socket.off('connect', reconnectToRoom);
+      }
     };
   }, [code, navigate]);
 

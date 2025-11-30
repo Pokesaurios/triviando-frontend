@@ -42,7 +42,7 @@ export default function WaitingRoomPage() {
     const token = localStorage.getItem('token');
     if (token) {
       const socket = getSocket();
-      if (!socket || !socket.connected) {
+      if (socket?.connected) {
         connectSocket(token);
       }
     }
