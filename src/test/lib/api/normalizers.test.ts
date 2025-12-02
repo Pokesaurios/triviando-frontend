@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { normalizeGameResult, normalizePlayer, normalizeRoom } from './normalizers';
+import { normalizeGameResult, normalizePlayer, normalizeRoom } from '../../../lib/api/normalizers';
 
 describe('normalizers', () => {
   it('normalizePlayer handles nested user and _id', () => {
