@@ -15,7 +15,7 @@ export default [
       globals: { ...globals.browser, React: 'readonly' },
       parser: tsParser,
       parserOptions: {
-        project: ['./tsconfig.app.json', './tsconfig.json'],
+        project: ['./tsconfig.app.json', './tsconfig.node.json','./tsconfig.json'],
         sourceType: 'module',
         ecmaFeatures: { jsx: true },
       },
