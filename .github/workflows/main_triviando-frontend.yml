@@ -61,4 +61,4 @@ jobs:
         with:
           app-name: 'triviando-frontend'
           slot-name: 'Production'
-          package: ./dist
+          package: ./node-app
