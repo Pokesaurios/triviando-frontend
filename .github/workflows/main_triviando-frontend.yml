@@ -56,10 +56,15 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_0B494766B9C64CBEA5802B7EAE4BEAB6 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_936C8571AA154393AB145E10B97488F4 }}
 
-      - name: 'Deploy to Azure Web App'
-        id: deploy-to-webapp
+      - name: Zip build
+        run: |
+          cd dist
+          zip -r ../site.zip .
+          cd ..
+
+      - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: 'triviando-frontend'
           slot-name: 'Production'
-          package: ./dist
+          package: site.zip
