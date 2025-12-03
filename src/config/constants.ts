@@ -23,11 +23,11 @@ export const ROUTES = {
 
 // Nueva constante para la URL base de la API
 export const API_CONFIG = {
-  BASE_URL: 'http://localhost:4000/api/v1',
+  BASE_URL: 'http://20.245.126.25/api/v1',
 };
 // Configuración del Socket
 export const SOCKET_CONFIG = {
-  URL: import.meta.env.VITE_SOCKET_URL || 'http://localhost:4000/',
+  URL: import.meta.env.VITE_SOCKET_URL || 'http://20.245.126.25/',
   OPTIONS: {
     autoConnect: false,
     withCredentials: true,
