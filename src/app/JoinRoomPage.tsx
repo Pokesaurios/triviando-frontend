@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { AnimatedBackground } from '../components/ui/AnimatedBackground';
 import { LogoHeader } from '../components/ui/LogoHeader';
-import { MenuButton } from '../components/ui/MenuButton';
 import { Alert } from '../components/ui/Alert';
 import { useJoinRoom } from '../hooks/useRoom';
 import toaster from 'react-hot-toast';
@@ -14,11 +13,6 @@ export default function JoinRoomPage() {
   const navigate = useNavigate();
   const joinRoomMutation = useJoinRoom();
   
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    globalThis.location.reload();
-  };
   const handleJoinRoom = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -71,9 +65,7 @@ export default function JoinRoomPage() {
           transition={{ type: 'spring', stiffness: 300 }}
         >
           <div className="relative">
-            <div className="absolute top-0 right-0 z-20">
-              <MenuButton onLogout={handleLogout} />
-            </div>
+            
             <LogoHeader variant="dashboard" />
             <div className="bg-white p-8 mt-5">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">

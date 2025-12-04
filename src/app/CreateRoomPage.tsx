@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { AnimatedBackground } from '../components/ui/AnimatedBackground';
 import { LogoHeader } from '../components/ui/LogoHeader';
-import { MenuButton } from '../components/ui/MenuButton';
 import { ChevronRight, Copy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toaster from 'react-hot-toast';
@@ -18,11 +17,6 @@ export default function CreateRoomPage() {
   const [loading, setLoading] = useState(false);
   const [roomCode, setRoomCode] = useState<string | null>(null);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    globalThis.location.reload();
-  };
 
   const handleBack = () => {
     navigate('/dashboard');
@@ -107,9 +101,7 @@ export default function CreateRoomPage() {
           transition={{ type: 'spring', stiffness: 300 }}
         >
           <div className="relative">
-            <div className="absolute top-0 right-0 z-20">
-              <MenuButton onLogout={handleLogout} />
-            </div>
+            
 
             <LogoHeader variant="dashboard" />
 

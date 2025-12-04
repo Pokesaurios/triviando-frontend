@@ -4,7 +4,7 @@ import { BackendGameResultRaw } from '../../types/backend.types';
 import { normalizeGameResult } from '../api/normalizers';
 
 export const getGameResults = async (): Promise<GameResultType[]> => {
-  const response = await apiClient.get<BackendGameResultRaw[]>('/game-results');
+  const response = await apiClient.get<BackendGameResultRaw[]>('/game-results', { requiresAuth: true });
   const raws = response.data ?? [];
   return raws.map(normalizeGameResult);
 };

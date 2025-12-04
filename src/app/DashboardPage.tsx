@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { AnimatedBackground } from '../components/ui/AnimatedBackground';
 import { LogoHeader } from '../components/ui/LogoHeader';
 import { MenuButton } from '../components/ui/MenuButton';
+import { authService } from '../lib/services/authServices';
 import { useNavigate } from 'react-router-dom';
 
 export default function DashboardPage() {
@@ -12,10 +13,16 @@ export default function DashboardPage() {
     return userData ? JSON.parse(userData) : { username: 'Usuario' };
   });
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    globalThis.location.reload();
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+    } catch (err) {
+      // Fallback: ensure client-side cleanup
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
+    // Redirect to login
+    globalThis.location.href = '/login';
   };
 
   const handleCreateTrivia = () => {

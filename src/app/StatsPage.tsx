@@ -2,7 +2,6 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { AnimatedBackground } from '../components/ui/AnimatedBackground';
 import { LogoHeader } from '../components/ui/LogoHeader';
-import { MenuButton } from '../components/ui/MenuButton';
 import { Trophy, Calendar, Brain, Zap, ArrowLeft } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getGameResults } from '../lib/services/statsServices';
@@ -85,20 +84,13 @@ export default function StatsPage() {
   }
 
   const handleBack = () => navigate('/dashboard');
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/');
-  };
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 p-4">
       <AnimatedBackground />
 
       {/* Header reutilizable */}
-      <div className="absolute top-4 right-4 z-20">
-        <MenuButton onLogout={handleLogout} />
-      </div>
+      
 
       <div className="max-w-7xl mx-auto relative z-10 mt-4">
         <motion.div

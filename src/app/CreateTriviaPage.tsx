@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { AnimatedBackground } from '../components/ui/AnimatedBackground';
 import { LogoHeader } from '../components/ui/LogoHeader';
-import { MenuButton } from '../components/ui/MenuButton';
 import { ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Alert } from '../components/ui/Alert';
@@ -64,11 +63,6 @@ export default function CreateTriviaPage() {
   const handleBack = () => {
     navigate('/dashboard');
   };
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    globalThis.location.reload();
-  };
 
   return (
     <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4 bg-gradient-to-b from-purple-500 to-purple-600">
@@ -85,9 +79,7 @@ export default function CreateTriviaPage() {
           transition={{ type: 'spring', stiffness: 300 }}
         >
           <div className="relative">
-            <div className="absolute top-0 right-0 z-20">
-              <MenuButton onLogout={handleLogout} />
-            </div>
+            
             <LogoHeader variant="dashboard" />
             <div className="bg-white p-6 mt-5">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">
