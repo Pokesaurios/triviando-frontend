@@ -63,7 +63,7 @@ class ApiClient {
       // Token expirado o inválido
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      globalThis.location.href = '/login';
+      globalThis.location.href = '/';
     }
 
     return {

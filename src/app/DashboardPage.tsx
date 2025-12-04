@@ -21,8 +21,8 @@ export default function DashboardPage() {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
     }
-    // Redirect to login
-    globalThis.location.href = '/login';
+    // Redirect to home page
+    globalThis.location.href = '/';
   };
 
   const handleCreateTrivia = () => {
