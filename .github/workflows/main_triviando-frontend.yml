@@ -23,6 +23,11 @@ jobs:
         with:
           node-version: '20.x'
 
+      - name: Create .env file from GitHub Secrets
+        run: |
+          echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" >> .env
+          echo "VITE_SOCKET_URL=${{ secrets.VITE_SOCKET_URL }}" >> .env
+
       - name: npm install, build, and test
         run: |
           npm install

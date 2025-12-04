@@ -24,7 +24,7 @@ describe('StatsServices', () => {
 
             const results = await getGameResults();
 
-            expect(apiClient.apiClient.get).toHaveBeenCalledWith('/game-results');
+            expect(apiClient.apiClient.get).toHaveBeenCalledWith('/game-results', { requiresAuth: true });
             expect(normalizers.normalizeGameResult).not.toHaveBeenCalled();
             expect(results).toEqual([]);
             expect(results).toHaveLength(0);
