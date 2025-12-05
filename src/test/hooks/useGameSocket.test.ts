@@ -276,8 +276,8 @@ describe('useGameSocket', () => {
         eventHandlers['round:answerRequest']({
           roundSequence: 1,
           options: ['A', 'B'],
-          answerTimeoutMs: 10000,
-          endsAt: Date.now() + 10000
+          answerTimeoutMs: 30000,
+          endsAt: Date.now() + 30000
         });
       });
 

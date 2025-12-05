@@ -66,3 +66,9 @@ export const SOCKET_EVENTS = {
   ROUND_RESULT: 'round:result',
   ROUND_BUTTON_PRESS: 'round:buttonPress',
 };
+
+// Valores por defecto usados en hooks y tests
+export const DEFAULTS = {
+  // Intervalo de sondeo de sala cuando el juego está en 'waiting' y el socket está desconectado (ms)
+  ROOM_POLL_INTERVAL_MS: 10000,
+};

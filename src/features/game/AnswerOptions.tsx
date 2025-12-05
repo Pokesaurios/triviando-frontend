@@ -5,11 +5,13 @@ import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
 interface AnswerOptionsProps {
   readonly options: string[];
   readonly onSelect: (index: number) => void;
-  readonly timeLeft: number;
+  readonly timeLeft: number; // seconds (deprecated)
+  readonly timeLeftMs?: number; // prefer ms for smoother UI
+  readonly maxTimeMs?: number; // prefer ms for progress calculation
   readonly isWaitingAck?: boolean;
 }
 
-export default function AnswerOptions({ options, onSelect, timeLeft, isWaitingAck }: AnswerOptionsProps) {
+export default function AnswerOptions({ options, onSelect, timeLeft, timeLeftMs, maxTimeMs, isWaitingAck }: AnswerOptionsProps) {
   const letters = ['A', 'B', 'C', 'D'];
   const colors = [
     'from-blue-500 to-blue-600',
@@ -18,6 +20,11 @@ export default function AnswerOptions({ options, onSelect, timeLeft, isWaitingAc
     'from-purple-500 to-purple-600',
   ];
 
+  const effectiveMaxMs = maxTimeMs ?? Math.max(1, timeLeft) * 1000;
+  const effectiveTimeMs = typeof timeLeftMs === 'number' ? timeLeftMs : Math.max(0, timeLeft) * 1000;
+
+  const getTimerPercentage = () => Math.max(0, Math.min(100, (effectiveTimeMs / Math.max(1, effectiveMaxMs)) * 100));
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
@@ -25,9 +32,19 @@ export default function AnswerOptions({ options, onSelect, timeLeft, isWaitingAc
       exit={{ opacity: 0, scale: 0.9 }}
       className="bg-white rounded-3xl shadow-2xl p-8"
     >
-      <div className="mb-6 flex items-center justify-center gap-3">
-        <Clock className="text-orange-500" size={32} />
-        <span className="text-4xl font-bold text-gray-800">{timeLeft}s</span>
+      <div className="mb-4">
+        <div className="mb-6 flex items-center justify-center gap-3">
+          <Clock className="text-orange-500" size={32} />
+          <span className="text-4xl font-bold text-gray-800">{(effectiveTimeMs / 1000).toFixed(1)}s</span>
+        </div>
+
+        <div className="mt-2 bg-gray-100 rounded-full h-3 overflow-hidden">
+          <motion.div
+            className="h-full bg-gradient-to-r from-yellow-400 to-orange-500"
+            animate={{ width: `${getTimerPercentage()}%` }}
+            transition={{ duration: 0.15 }}
+          />
+        </div>
       </div>
 
       <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">

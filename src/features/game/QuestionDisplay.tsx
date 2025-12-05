@@ -3,26 +3,35 @@ import { Clock } from 'lucide-react';
 
 interface QuestionDisplayProps {
   question: string;
-  timeLeft: number;
+  timeLeft: number; // seconds (deprecated)
+  timeLeftMs?: number; // prefer ms for smoother UI
   questionNumber: number;
   roomCode: string;
+  maxTimeSeconds?: number; // seconds (deprecated)
+  maxTimeMs?: number; // prefer ms for progress calculation
 }
 
 export default function QuestionDisplay({
   question,
   timeLeft,
+  timeLeftMs,
   questionNumber,
   roomCode,
+  maxTimeSeconds = 30,
+  maxTimeMs,
 }: Readonly<QuestionDisplayProps>) {
+  const effectiveMaxMs = maxTimeMs ?? (Math.max(1, maxTimeSeconds) * 1000);
+  const effectiveTimeMs = typeof timeLeftMs === 'number' ? timeLeftMs : (Math.max(0, timeLeft) * 1000);
+
   const getTimerColor = () => {
-    const percentage = (timeLeft / 30) * 100;
+    const percentage = (effectiveTimeMs / Math.max(1, effectiveMaxMs)) * 100;
     if (percentage > 66) return 'from-green-400 to-green-600';
     if (percentage > 33) return 'from-yellow-400 to-orange-500';
     return 'from-red-500 to-red-700';
   };
 
   const getTimerPercentage = () => {
-    return Math.max(0, Math.min(100, (timeLeft / 30) * 100));
+    return Math.max(0, Math.min(100, (effectiveTimeMs / Math.max(1, effectiveMaxMs)) * 100));
   };
 
   return (
@@ -40,7 +49,7 @@ export default function QuestionDisplay({
           </div>
           <div className="flex items-center gap-2">
             <Clock className="text-white" size={24} />
-            <span className="text-white text-2xl font-bold">{timeLeft}s</span>
+            <span className="text-white text-2xl font-bold">{(effectiveTimeMs / 1000).toFixed(1)}s</span>
           </div>
         </div>
         <div className="mt-3 bg-white/30 rounded-full h-3 overflow-hidden">

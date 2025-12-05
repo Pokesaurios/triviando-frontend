@@ -34,7 +34,12 @@ export default function GamePage() {
     playerWhoPressedId,
     showAnswerOptions,
     timeLeft,
+    timeLeftMs,
+    maxTimeSeconds,
+    maxTimeMs,
     answerTimeLeft,
+    answerTimeLeftMs,
+    answerMaxTimeMs,
     currentQuestionNumber,
     gameEnded,
     winner,
@@ -209,6 +214,9 @@ export default function GamePage() {
               <QuestionDisplay
                 question={currentQuestion}
                 timeLeft={timeLeft}
+                timeLeftMs={timeLeftMs}
+                maxTimeSeconds={maxTimeSeconds}
+                maxTimeMs={maxTimeMs}
                 questionNumber={currentQuestionNumber}
                 roomCode={code}
               />
@@ -220,8 +228,10 @@ export default function GamePage() {
                 <AnswerOptions
                   options={currentOptions}
                   onSelect={submitAnswer}
-                  timeLeft={answerTimeLeft}
-                  isWaitingAck={waitingAnswerAck}
+                    timeLeft={answerTimeLeft}
+                    timeLeftMs={answerTimeLeftMs}
+                    maxTimeMs={answerMaxTimeMs}
+                    isWaitingAck={waitingAnswerAck}
                 />
               ) : (
                 <motion.div

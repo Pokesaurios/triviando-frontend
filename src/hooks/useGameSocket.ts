@@ -13,7 +13,11 @@ interface UseGameSocketReturn {
   playerWhoPressedId: string | null;
   showAnswerOptions: boolean;
   timeLeft: number;
+  timeLeftMs: number;
+  maxTimeSeconds: number;
+  maxTimeMs: number;
   answerTimeLeft: number;
+  answerTimeLeftMs: number;
   totalQuestions: number;
   currentQuestionNumber: number;
   gameEnded: boolean;
@@ -35,7 +39,12 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
   const [playerWhoPressedId, setPlayerWhoPressedId] = useState<string | null>(null);
   const [showAnswerOptions, setShowAnswerOptions] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [timeLeftMs, setTimeLeftMs] = useState(0);
+  const [maxTimeSeconds, setMaxTimeSeconds] = useState(30);
+  const [maxTimeMs, setMaxTimeMs] = useState(30000);
   const [answerTimeLeft, setAnswerTimeLeft] = useState(0);
+  const [answerTimeLeftMs, setAnswerTimeLeftMs] = useState(0);
+  const [answerMaxTimeMs, setAnswerMaxTimeMs] = useState(30000);
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [currentQuestionNumber, setCurrentQuestionNumber] = useState(0);
   const [gameEnded, setGameEnded] = useState(false);
@@ -51,11 +60,12 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
   const isBlocked = gameState?.blocked?.[currentUserId] || false;
 
   // Util: startCountdown - helper para crear timers de cuenta atrás
-  const startCountdown = (endTime: number, onTick: (remaining: number) => void): NodeJS.Timeout => {
+  // startCountdown: calls the callback with remaining milliseconds every 100ms
+  const startCountdown = (endTime: number, onTickMs: (remainingMs: number) => void): NodeJS.Timeout => {
     const timer: NodeJS.Timeout = setInterval(() => {
-      const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
-      onTick(remaining);
-      if (remaining === 0) {
+      const remainingMs = Math.max(0, endTime - Date.now());
+      onTickMs(remainingMs);
+      if (remainingMs <= 0) {
         clearInterval(timer);
       }
     }, 100);
@@ -116,6 +126,62 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
     if (newState.currentQuestionIndex !== undefined) {
       setCurrentQuestionNumber(newState.currentQuestionIndex + 1);
     }
+
+    // Resume timers if the server provided timestamps (use server as source of truth)
+    // Update current round sequence
+    if (typeof newState.roundSequence === 'number') {
+      currentRoundSequence.current = newState.roundSequence;
+    }
+
+    // If the game state indicates we are in reading phase and server provided an end timestamp, resume reading countdown
+    if (newState.status === 'reading' && typeof (newState as any).questionReadEndsAt === 'number') {
+      try {
+        clearTimers();
+        const endTime = (newState as any).questionReadEndsAt as number;
+        const remainingMs = Math.max(0, endTime - Date.now());
+        setTimeLeftMs(remainingMs);
+        setTimeLeft(Math.max(0, Math.floor(remainingMs / 1000)));
+        // If we don't have a prior max, use remainingMs as a best-effort denominator for progress
+        setMaxTimeMs((prev) => {
+          if (prev && prev > 0) return prev;
+          return remainingMs > 0 ? remainingMs : prev || 10000;
+        });
+        buzzerTimerRef.current = startCountdown(endTime, (remaining) => {
+          const sec = Math.max(0, Math.floor(remaining / 1000));
+          setTimeLeftMs(remaining);
+          setTimeLeft(sec);
+          if (remaining === 0) buzzerTimerRef.current = null;
+        });
+      } catch (e) {
+        console.warn('Failed to resume reading timer from game:update', e);
+      }
+    }
+
+    // If the game state indicates we are in answering phase and server provided an end timestamp, resume answer countdown
+    if (newState.status === 'answering' && typeof (newState as any).answerWindowEndsAt === 'number') {
+      try {
+        clearTimers();
+        const endTime = (newState as any).answerWindowEndsAt as number;
+        const remainingMs = Math.max(0, endTime - Date.now());
+        setAnswerTimeLeftMs(remainingMs);
+        setAnswerTimeLeft(Math.max(0, Math.floor(remainingMs / 1000)));
+        // Prefer server-provided start/end to compute max; fallback to previous or remaining
+        setAnswerMaxTimeMs((prev) => {
+          const started = (newState as any).answerWindowStartedAt as number | undefined;
+          if (typeof started === 'number' && endTime > started) return endTime - started;
+          if (prev && prev > 0) return prev;
+          return remainingMs > 0 ? remainingMs : prev || 30000;
+        });
+        answerTimerRef.current = startCountdown(endTime, (remaining) => {
+          const sec = Math.max(0, Math.floor(remaining / 1000));
+          setAnswerTimeLeftMs(remaining);
+          setAnswerTimeLeft(sec);
+          if (remaining === 0) answerTimerRef.current = null;
+        });
+      } catch (e) {
+        console.warn('Failed to resume answer timer from game:update', e);
+      }
+    }
   }, []);
 
   // Game started
@@ -149,14 +215,20 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
     resetInteractionState({ clearPlayerPressed: true });
     setCurrentQuestion(data.questionText);
 
+    // Set max time for this phase (reading) so progress UI can normalize correctly
+    setMaxTimeMs(data.readMs);
+    setMaxTimeSeconds(Math.max(1, Math.floor(data.readMs / 1000)));
+
     const endTime = Date.now() + data.readMs;
-    buzzerTimerRef.current = startCountdown(endTime, (remaining) => {
+    buzzerTimerRef.current = startCountdown(endTime, (remainingMs) => {
+      const remaining = Math.max(0, Math.floor(remainingMs / 1000));
+      setTimeLeftMs(remainingMs);
       setTimeLeft(remaining);
-      if (remaining === 0) {
+      if (remainingMs === 0) {
         buzzerTimerRef.current = null;
       }
     });
-  }, [clearTimers]);
+  }, [resetInteractionState]);
 
   // Open buzzer
   const handleOpenButton = useCallback((data: { roundSequence: number; pressWindowMs: number }) => {
@@ -172,14 +244,20 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
     setShowBuzzer(true);
     setBuzzerPressed(false);
 
+    // Set max time for press window so progress UI is accurate (ms)
+    setMaxTimeMs(data.pressWindowMs);
+    setMaxTimeSeconds(Math.max(1, Math.floor(data.pressWindowMs / 1000)));
+
     const endTime = Date.now() + data.pressWindowMs;
-    buzzerTimerRef.current = startCountdown(endTime, (remaining) => {
+    buzzerTimerRef.current = startCountdown(endTime, (remainingMs) => {
+      const remaining = Math.max(0, Math.floor(remainingMs / 1000));
+      setTimeLeftMs(remainingMs);
       setTimeLeft(remaining);
-      if (remaining === 0) {
+      if (remainingMs === 0) {
         buzzerTimerRef.current = null;
       }
     });
-  }, [clearTimers]);
+  }, [resetInteractionState]);
 
   // Player won button
   const handlePlayerWonButton = useCallback((data: { roundSequence: number; playerId: string; name: string }) => {
@@ -195,7 +273,7 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
     setBuzzerPressed(true);
     setPlayerWhoPressed(data.name);
     setPlayerWhoPressedId(data.playerId);
-  }, [clearTimers]);
+  }, [resetInteractionState]);
 
   // Answer request
   const handleAnswerRequest = useCallback((data: { 
@@ -216,14 +294,33 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
     setCurrentOptions(data.options);
     setShowAnswerOptions(true);
 
-    const endTime = data.endsAt || (Date.now() + data.answerTimeoutMs);
-    answerTimerRef.current = startCountdown(endTime, (remaining) => {
+    // Configure max time for answer phase.
+    // Prefer explicit `answerTimeoutMs` (server-declared duration) for progress denominator.
+    // Use `endsAt` strictly as the source of truth for endTime.
+    const remainingMsFromEndsAt = typeof data.endsAt === 'number' ? Math.max(0, data.endsAt - Date.now()) : undefined;
+    const answerMax = typeof data.answerTimeoutMs === 'number'
+      ? data.answerTimeoutMs
+      : (typeof remainingMsFromEndsAt === 'number' ? remainingMsFromEndsAt : 30000);
+
+    setAnswerMaxTimeMs(answerMax);
+    setMaxTimeSeconds(Math.max(1, Math.floor(answerMax / 1000)));
+
+    const endTime = typeof data.endsAt === 'number' ? data.endsAt : (Date.now() + answerMax);
+
+    // Initialize displayed remaining values immediately
+    const initialRemaining = typeof remainingMsFromEndsAt === 'number' ? remainingMsFromEndsAt : answerMax;
+    setAnswerTimeLeftMs(initialRemaining);
+    setAnswerTimeLeft(Math.max(0, Math.floor(initialRemaining / 1000)));
+
+    answerTimerRef.current = startCountdown(endTime, (remainingMs) => {
+      const remaining = Math.max(0, Math.floor(remainingMs / 1000));
+      setAnswerTimeLeftMs(remainingMs);
       setAnswerTimeLeft(remaining);
-      if (remaining === 0) {
+      if (remainingMs === 0) {
         answerTimerRef.current = null;
       }
     });
-  }, [clearTimers]);
+  }, [resetInteractionState]);
 
   // ===== MANEJADOR CRÍTICO: round:result =====
   // Aquí actualizamos los scores después de cada respuesta
@@ -260,7 +357,7 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
       setPlayerWhoPressed(null);
       setPlayerWhoPressedId(null);
     }, 1000);
-  }, [clearTimers]);
+  }, [resetInteractionState]);
 
   // ===== MANEJADOR CRÍTICO: game:ended =====
   const handleGameEnded = useCallback((data: { 
@@ -295,7 +392,7 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
     setGameEnded(true);
     setWinner(data.winner);
     // ya fueron limpiados por resetInteractionState
-  }, [clearTimers]);
+  }, [resetInteractionState]);
 
   // Press buzzer action
   const pressBuzzer = useCallback(() => {
@@ -356,6 +453,8 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
     socket.on('round:answerRequest', handleAnswerRequest);
     socket.on('round:result', handleRoundResult);
     socket.on('game:ended', handleGameEnded);
+    // Some server paths emit `game:finished` (timers worker), listen for it too
+    socket.on('game:finished', handleGameEnded);
 
     // Listener para inicialización desde reconnect
     const handleGameStateInit = (event: CustomEvent) => {
@@ -375,6 +474,7 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
       socket.off('round:answerRequest', handleAnswerRequest);
       socket.off('round:result', handleRoundResult);
       socket.off('game:ended', handleGameEnded);
+      socket.off('game:finished', handleGameEnded);
       globalThis.removeEventListener('triviando:gameStateInit', handleGameStateInit as EventListener);
       clearTimers();
     };
@@ -401,6 +501,7 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
     playerWhoPressedId,
     showAnswerOptions,
     timeLeft,
+    maxTimeSeconds,
     answerTimeLeft,
     totalQuestions,
     currentQuestionNumber,
@@ -411,5 +512,9 @@ export const useGameSocket = (roomCode: string): UseGameSocketReturn => {
     isBlocked,
     waitingBuzzerAck,
     waitingAnswerAck,
+    timeLeftMs,
+    maxTimeMs,
+    answerTimeLeftMs,
+    answerMaxTimeMs,
   };
 };

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { roomServices } from '../lib/services/roomServices';
+import { DEFAULTS } from '../config/constants';
 import type {
   CreateRoomRequest,
   JoinRoomRequest,
@@ -55,7 +56,7 @@ export const useRoom = (
       
       const data = query.state.data;
       // Asegurar que status usa valores normalizados
-      return data?.status === 'waiting' ? 10000 : false;
+      return data?.status === 'waiting' ? DEFAULTS.ROOM_POLL_INTERVAL_MS : false;
     },
     staleTime: 5000,
     refetchOnWindowFocus: true,
