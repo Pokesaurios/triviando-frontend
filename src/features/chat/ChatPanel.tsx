@@ -58,13 +58,17 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       <div ref={containerRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-gray-50 to-white">
         <AnimatePresence>
           {messages.length > 0 ? (
-            messages.map((msg) => (
-              <ChatMessageComponent
-                key={msg.id}
-                message={msg}
-                isCurrentUser={msg.userId === currentUserId}
-              />
-            ))
+            messages.map((msg, i) => {
+              // Use msg.id when available; fallback to a stable composite key
+              const key = msg.id || `${msg.userId}-${msg.timestamp}-${i}`;
+              return (
+                <ChatMessageComponent
+                  key={key}
+                  message={msg}
+                  isCurrentUser={msg.userId === currentUserId}
+                />
+              );
+            })
           ) : (
             <div className="text-center py-8 text-gray-500">
               <MessageCircle size={48} className="mx-auto mb-2 opacity-50" />
